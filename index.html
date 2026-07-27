@@ -70,6 +70,8 @@
     padding: 10px; border-radius: 8px; text-decoration: none; font-weight: 700;
   }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -120,6 +122,14 @@
   <div id="statusSyncAll" class="status"></div>
 </div>
 
+<div class="card" style="max-width:900px;">
+  <h2>📍 UK Project Map</h2>
+  <div class="sub">Plots every Pipeline project by address. 🔴 High Risk &nbsp; 🟢 Priority Score 4+ &nbsp; 🟠 Priority Score 0-3</div>
+  <button class="submit btn-blue" id="loadMapBtn">Load Map</button>
+  <div id="statusMap" class="status"></div>
+  <div id="map" style="height:500px; border-radius:8px; margin-top:14px; display:none;"></div>
+</div>
+
 <script>
 const WORKSPACE_ID = 16085486;
 const PIPELINE_BOARD_ID = 18419311248;
@@ -127,6 +137,7 @@ const TEMPLATE_BOARD_ID = 18423661718; // NEW PROJECT TEMPLATE - BEN DO NOT CHAN
 const PIPELINE_ADDRESS_COL = "text_mm4n4axw";
 const START_DATE_COL = "date_mm5nbqe9";
 const END_DATE_COL = "date_mm5n5v74";
+const DURATION_COL = "timerange_mm5nbxws";
 const PROJECT_BOARD_LINK_COL = "link_mm5j5v2k";
 
 document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
@@ -365,11 +376,13 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     try {
       const handoverTemplateItem = allItems.find(it => it.name === 'Stage 4 Handover to GRM');
       const enquiryTemplateItem = allItems.find(it => it.name === 'Project Enquiry');
+      let finalStart = null, finalEnd = null;
       if (handoverTemplateItem) {
         const newHandoverId = itemIdMap[handoverTemplateItem.id];
         const hd = await mondayCall(token, `query($itemId: [ID!]) { items(ids: $itemId) { column_values(ids: ["${timelineColId}"]) { text } } }`, { itemId: [newHandoverId] });
         const endDate = hd.items[0]?.column_values[0]?.text?.split(' - ')[1];
         if (endDate) {
+          finalEnd = endDate;
           await mondayCall(token, `mutation($val: JSON!) { change_column_value(board_id: ${PIPELINE_BOARD_ID}, item_id: ${selectedPipelineItemId_create}, column_id: "${END_DATE_COL}", value: $val) { id } }`, { val: JSON.stringify({ date: endDate }) });
         }
       }
@@ -378,8 +391,12 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         const ed = await mondayCall(token, `query($itemId: [ID!]) { items(ids: $itemId) { column_values(ids: ["${timelineColId}"]) { text } } }`, { itemId: [newEnquiryId] });
         const startDateVal = ed.items[0]?.column_values[0]?.text?.split(' - ')[0];
         if (startDateVal) {
+          finalStart = startDateVal;
           await mondayCall(token, `mutation($val: JSON!) { change_column_value(board_id: ${PIPELINE_BOARD_ID}, item_id: ${selectedPipelineItemId_create}, column_id: "${START_DATE_COL}", value: $val) { id } }`, { val: JSON.stringify({ date: startDateVal }) });
         }
+      }
+      if (finalStart && finalEnd) {
+        await mondayCall(token, `mutation($val: JSON!) { change_column_value(board_id: ${PIPELINE_BOARD_ID}, item_id: ${selectedPipelineItemId_create}, column_id: "${DURATION_COL}", value: $val) { id } }`, { val: JSON.stringify({ from: finalStart, to: finalEnd }) });
       }
     } catch (linkErr) {
       console.warn('Date write-back failed (non-fatal):', linkErr.message);
@@ -433,6 +450,9 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
     }
     if (updates.end) {
       await mondayCall(token, `mutation($val: JSON!) { change_column_value(board_id: ${PIPELINE_BOARD_ID}, item_id: ${selectedPipelineItemId_sync}, column_id: "${END_DATE_COL}", value: $val) { id } }`, { val: JSON.stringify({ date: updates.end }) });
+    }
+    if (updates.start && updates.end) {
+      await mondayCall(token, `mutation($val: JSON!) { change_column_value(board_id: ${PIPELINE_BOARD_ID}, item_id: ${selectedPipelineItemId_sync}, column_id: "${DURATION_COL}", value: $val) { id } }`, { val: JSON.stringify({ from: updates.start, to: updates.end }) });
     }
 
     setStatus('statusSync', `✅ Synced! Start: ${updates.start || 'n/a'}, End: ${updates.end || 'n/a'}`, 'ok');
@@ -503,6 +523,9 @@ document.getElementById('syncAllBtn').addEventListener('click', async () => {
           await mondayCall(token, `mutation($val: JSON!) { change_column_value(board_id: ${PIPELINE_BOARD_ID}, item_id: ${item.id}, column_id: "${END_DATE_COL}", value: $val) { id } }`, { val: JSON.stringify({ date: newEnd }) });
           syncedCount++;
         }
+        if (newStart && newEnd && (newStart !== currentStart || newEnd !== currentEnd)) {
+          await mondayCall(token, `mutation($val: JSON!) { change_column_value(board_id: ${PIPELINE_BOARD_ID}, item_id: ${item.id}, column_id: "${DURATION_COL}", value: $val) { id } }`, { val: JSON.stringify({ from: newStart, to: newEnd }) });
+        }
       } catch (innerErr) {
         console.warn(`Skipped "${item.name}": ${innerErr.message}`);
       }
@@ -511,6 +534,98 @@ document.getElementById('syncAllBtn').addEventListener('click', async () => {
     setStatus('statusSyncAll', `✅ Done! Checked ${checkedCount} linked project(s), updated ${syncedCount} field(s).`, 'ok');
   } catch (e) {
     setStatus('statusSyncAll', '❌ Error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+const PRIORITY_SCORE_COL = "formula_mm5jc7v3";
+const HIGH_RISK_GROUP_ID = "group_mm5j7ex7";
+let leafletMap = null;
+
+async function geocodeAddress(address) {
+  const cacheKey = 'geocode_' + address;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=gb&limit=1&q=${encodeURIComponent(address)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.length === 0) return null;
+  const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  localStorage.setItem(cacheKey, JSON.stringify(coords));
+  return coords;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+document.getElementById('loadMapBtn').addEventListener('click', async () => {
+  const token = document.getElementById('apiToken').value.trim();
+  if (!token) { setStatus('statusMap', 'Please paste your monday.com API token.', 'err'); return; }
+
+  const btn = document.getElementById('loadMapBtn');
+  btn.disabled = true;
+  document.getElementById('map').style.display = 'block';
+
+  try {
+    setStatus('statusMap', 'Fetching Pipeline projects...', 'working');
+    const data = await mondayCall(token, `
+      query($boardId: ID!) {
+        boards(ids: [$boardId]) {
+          items_page(limit: 100) {
+            items {
+              name
+              group { id }
+              column_values(ids: ["${PIPELINE_ADDRESS_COL}", "${PRIORITY_SCORE_COL}"]) { id text }
+            }
+          }
+        }
+      }`, { boardId: PIPELINE_BOARD_ID });
+    const items = data.boards[0].items_page.items;
+
+    if (!leafletMap) {
+      leafletMap = L.map('map').setView([54.5, -3.5], 6); // centred on UK
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(leafletMap);
+    }
+
+    let plotted = 0, skipped = 0;
+    const skipReasons = [];
+    for (const item of items) {
+      const addressVal = item.column_values.find(c => c.id === PIPELINE_ADDRESS_COL);
+      const address = addressVal && addressVal.text;
+      if (!address) { skipped++; skipReasons.push(`${item.name}: no address`); continue; }
+
+      const scoreVal = item.column_values.find(c => c.id === PRIORITY_SCORE_COL);
+      const score = scoreVal && scoreVal.text ? parseFloat(scoreVal.text) : 0;
+      const isHighRisk = item.group.id === HIGH_RISK_GROUP_ID;
+
+      let color = '#fdab3d';
+      if (isHighRisk) color = '#df2f4a';
+      else if (score >= 4) color = '#00c875';
+
+      setStatus('statusMap', `Geocoding "${item.name}"... (${plotted} plotted so far)`, 'working');
+      try {
+        const coords = await geocodeAddress(address + ', UK');
+        if (!coords) { skipped++; skipReasons.push(`${item.name}: address not found ("${address}")`); await sleep(1100); continue; }
+
+        L.circleMarker([coords.lat, coords.lng], {
+          radius: 9, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.9
+        }).addTo(leafletMap).bindPopup(`<b>${item.name}</b><br>Score: ${score}${isHighRisk ? '<br><span style="color:#df2f4a">⚠ High Risk</span>' : ''}`);
+
+        plotted++;
+      } catch (geoErr) {
+        skipped++;
+        skipReasons.push(`${item.name}: geocoding error (${geoErr.message})`);
+      }
+      await sleep(1100); // respect Nominatim's 1 request/sec rate limit
+    }
+
+    console.log('Skip reasons:', skipReasons);
+    setStatus('statusMap', `✅ Plotted ${plotted} project(s). ${skipped > 0 ? skipped + ' skipped — see browser console for details.' : ''}`, 'ok');
+  } catch (e) {
+    setStatus('statusMap', '❌ Error: ' + e.message, 'err');
   } finally {
     btn.disabled = false;
   }
