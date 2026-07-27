@@ -26,7 +26,7 @@
   .sub { color: #9699a6; font-size: 13px; margin-bottom: 24px; }
   label { font-size: 13px; color: #c5c7d0; font-weight: 600; display: block; margin-bottom: 6px; }
   .field { margin-bottom: 18px; }
-  input[type="text"], input[type="date"], input[type="password"] {
+  input[type="text"], input[type="date"], input[type="password"], select {
     width: 100%;
     padding: 10px 12px;
     border-radius: 8px;
@@ -35,14 +35,7 @@
     color: #fff;
     font-size: 14px;
   }
-  input:focus { outline: none; border-color: #579bfc; }
-  .size-row { display: flex; gap: 8px; }
-  .size-btn {
-    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #33364a;
-    background: #23263a; color: #c5c7d0; cursor: pointer; text-align: center;
-    font-weight: 600; font-size: 13px; transition: all .15s;
-  }
-  .size-btn.selected { background: #579bfc; border-color: #579bfc; color: #fff; }
+  input:focus, select:focus { outline: none; border-color: #579bfc; }
   button.submit {
     width: 100%; padding: 13px; border-radius: 8px; border: none;
     background: #00c875; color: #fff; font-weight: 700; font-size: 14px;
@@ -54,7 +47,6 @@
     background: #23263a; border: 1px solid #33364a; border-radius: 8px;
     padding: 14px; margin-bottom: 20px; font-size: 12px; color: #9699a6;
   }
-  .token-box a { color: #579bfc; }
   #status { margin-top: 16px; font-size: 13px; white-space: pre-line; }
   .ok { color: #00c875; }
   .err { color: #ff5c72; }
@@ -69,17 +61,17 @@
 <body>
 <div class="card">
   <h1>🚀 GRM Project Kickoff</h1>
-  <div class="sub">Creates a new project board in GRM Energy Ltd from the S/M/L programme template.</div>
+  <div class="sub">Clones the exact structure of "NEW PROJECT TEMPLATE - BEN DO NOT CHANGE TIMES" into a new project board.</div>
 
-  <div class="token-box" id="tokenSection">
+  <div class="token-box">
     <label style="margin-bottom:8px;">monday.com API Token</label>
     <input type="password" id="apiToken" placeholder="Paste your personal API token" />
-    <div style="margin-top:8px;">Get yours from monday.com → Avatar → Admin → API, or Profile → Developers. Stored only in this browser.</div>
+    <div style="margin-top:8px;">Stored only in this browser.</div>
   </div>
 
   <div class="field">
     <label>Select from Project Pipeline</label>
-    <select id="pipelinePicker" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #33364a; background:#23263a; color:#fff; font-size:14px;">
+    <select id="pipelinePicker">
       <option value="">Loading pipeline projects...</option>
     </select>
   </div>
@@ -118,152 +110,12 @@
 const WORKSPACE_ID = 16085486;
 const PIPELINE_BOARD_ID = 18419311248;
 const TEMPLATE_BOARD_ID = 18423661718; // NEW PROJECT TEMPLATE - BEN DO NOT CHANGE TIMES
-const TEMPLATE_TIMELINE_COL = "timerange_mm4nv9qz";
 const PIPELINE_ADDRESS_COL = "text_mm4n4axw";
-const PIPELINE_CLIENT_COL = "color_mm4nnk8x";
-
-// Durations are fetched LIVE from the master template board every time —
-// never hardcoded, so edits Ben makes on that board are always respected.
-async function fetchTemplateDurations(token) {
-  let allItems = [];
-  let cursor = null;
-  do {
-    const data = await mondayCall(token, `
-      query($boardId: ID!, $cursor: String) {
-        boards(ids: [$boardId]) {
-          items_page(limit: 100, cursor: $cursor) {
-            cursor
-            items {
-              name
-              group { title }
-              column_values(ids: ["${TEMPLATE_TIMELINE_COL}"]) { text }
-            }
-          }
-        }
-      }`, { boardId: TEMPLATE_BOARD_ID, cursor });
-    const page = data.boards[0].items_page;
-    allItems = allItems.concat(page.items);
-    cursor = page.cursor;
-  } while (cursor);
-
-  // Bucket by stage group, find earliest start / latest end per stage
-  const stageRanges = {};
-  STAGE_NAMES.forEach(name => { stageRanges[name] = { min: null, max: null }; });
-
-  allItems.forEach(item => {
-    const groupTitle = item.group.title;
-    if (!STAGE_NAMES.includes(groupTitle)) return;
-    const tlCol = item.column_values[0];
-    if (!tlCol || !tlCol.text) return;
-    const parts = tlCol.text.split(' - ');
-    if (parts.length !== 2) return;
-    const [from, to] = parts;
-    const range = stageRanges[groupTitle];
-    if (!range.min || from < range.min) range.min = from;
-    if (!range.max || to > range.max) range.max = to;
-  });
-
-  // Convert each stage's earliest-start to next stage's earliest-start into a week duration
-  const starts = STAGE_NAMES.map(name => stageRanges[name].min).filter(Boolean);
-  const durations = [];
-  for (let i = 0; i < STAGE_NAMES.length; i++) {
-    const range = stageRanges[STAGE_NAMES[i]];
-    let weeks;
-    if (range.min && range.max) {
-      const days = (new Date(range.max) - new Date(range.min)) / 86400000;
-      weeks = Math.max(1, Math.round(days / 7));
-    } else {
-      weeks = 1; // fallback if this stage has no dates set on the master board yet
-    }
-    durations.push(weeks);
-  }
-  return durations;
-}
-
-const STAGE_NAMES = [
-  "Stage 0 - Strategic Definition",
-  "Stage 1 - Preparation and Brief",
-  "Stage 2 - Concept Design",
-  "Stage 3 - Developed Design",
-  "Stage 4 - Technical Design"
-];
-
-const PROJECT_DETAIL_ITEMS = [
-  "Title Number","Site Size","Project Brief",
-  "Listed Use Class","Agricultural Land Classification","Listed Buildings","Flooding",
-  "National Parks","Green Belt","AONB","Conservation Area","SSSI","Article 4 Area",
-  "Public Rights of Way","Scheduled Monuments","Ancient Woodland","Battlefields"
-];
-
 
 document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
 
-// Load saved token
 const savedToken = localStorage.getItem('monday_api_token');
 if (savedToken) document.getElementById('apiToken').value = savedToken;
-
-let pipelineItems = [];
-
-async function loadPipelineItems() {
-  const token = document.getElementById('apiToken').value.trim();
-  const picker = document.getElementById('pipelinePicker');
-  if (!token) {
-    picker.innerHTML = '<option value="">Paste your API token first</option>';
-    return;
-  }
-  picker.innerHTML = '<option value="">Loading pipeline projects...</option>';
-  try {
-    const data = await mondayCall(token, `
-      query($boardId: ID!) {
-        boards(ids: [$boardId]) {
-          items_page(limit: 100) {
-            items {
-              id
-              name
-              column_values(ids: ["${PIPELINE_ADDRESS_COL}", "${PIPELINE_CLIENT_COL}"]) {
-                id
-                text
-              }
-            }
-          }
-        }
-      }`, { boardId: PIPELINE_BOARD_ID });
-    pipelineItems = data.boards[0].items_page.items;
-    picker.innerHTML = '<option value="">-- Select a project --</option>' +
-      pipelineItems.map(it => `<option value="${it.id}">${it.name}</option>`).join('');
-
-    // Auto-select if item ID passed via URL (?item=12345)
-    const params = new URLSearchParams(window.location.search);
-    const preselectId = params.get('item');
-    if (preselectId) {
-      picker.value = preselectId;
-      picker.dispatchEvent(new Event('change'));
-    }
-  } catch (e) {
-    picker.innerHTML = '<option value="">Failed to load — check token</option>';
-  }
-}
-
-document.getElementById('apiToken').addEventListener('blur', loadPipelineItems);
-if (savedToken) loadPipelineItems();
-
-document.getElementById('pipelinePicker').addEventListener('change', (e) => {
-  const item = pipelineItems.find(it => it.id === e.target.value);
-  if (!item) {
-    document.getElementById('projectName').value = '';
-    document.getElementById('address').value = '';
-    return;
-  }
-  document.getElementById('projectName').value = item.name;
-  const addressCol = item.column_values.find(c => c.id === PIPELINE_ADDRESS_COL);
-  document.getElementById('address').value = addressCol ? addressCol.text : '';
-});
-
-document.querySelectorAll('.size-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    // legacy no-op — size selector removed
-  });
-});
 
 function setStatus(msg, cls) {
   const el = document.getElementById('status');
@@ -274,10 +126,7 @@ function setStatus(msg, cls) {
 async function mondayCall(token, query, variables) {
   const res = await fetch('https://api.monday.com/v2', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': token },
     body: JSON.stringify({ query, variables })
   });
   const json = await res.json();
@@ -285,9 +134,47 @@ async function mondayCall(token, query, variables) {
   return json.data;
 }
 
-function addWeeks(dateStr, weeks) {
+let pipelineItems = [];
+
+async function loadPipelineItems() {
+  const token = document.getElementById('apiToken').value.trim();
+  const picker = document.getElementById('pipelinePicker');
+  if (!token) { picker.innerHTML = '<option value="">Paste your API token first</option>'; return; }
+  picker.innerHTML = '<option value="">Loading pipeline projects...</option>';
+  try {
+    const data = await mondayCall(token, `
+      query($boardId: ID!) {
+        boards(ids: [$boardId]) {
+          items_page(limit: 100) {
+            items { id name column_values(ids: ["${PIPELINE_ADDRESS_COL}"]) { id text } }
+          }
+        }
+      }`, { boardId: PIPELINE_BOARD_ID });
+    pipelineItems = data.boards[0].items_page.items;
+    picker.innerHTML = '<option value="">-- Select a project --</option>' +
+      pipelineItems.map(it => `<option value="${it.id}">${it.name}</option>`).join('');
+    const params = new URLSearchParams(window.location.search);
+    const preselectId = params.get('item');
+    if (preselectId) { picker.value = preselectId; picker.dispatchEvent(new Event('change')); }
+  } catch (e) {
+    picker.innerHTML = '<option value="">Failed to load — check token</option>';
+  }
+}
+
+document.getElementById('apiToken').addEventListener('blur', loadPipelineItems);
+if (savedToken) loadPipelineItems();
+
+document.getElementById('pipelinePicker').addEventListener('change', (e) => {
+  const item = pipelineItems.find(it => it.id === e.target.value);
+  if (!item) { document.getElementById('projectName').value = ''; document.getElementById('address').value = ''; return; }
+  document.getElementById('projectName').value = item.name;
+  const addressCol = item.column_values.find(c => c.id === PIPELINE_ADDRESS_COL);
+  document.getElementById('address').value = addressCol ? addressCol.text : '';
+});
+
+function addDays(dateStr, days) {
   const d = new Date(dateStr);
-  d.setDate(d.getDate() + weeks * 7);
+  d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 }
 
@@ -303,111 +190,151 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   if (!projectName) { setStatus('Please enter a project name.', 'err'); return; }
 
   localStorage.setItem('monday_api_token', token);
-
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
   document.getElementById('resultLink').style.display = 'none';
 
   try {
-    setStatus('Creating board...', 'working');
+    setStatus('Reading master template structure...', 'working');
+    const schema = await mondayCall(token, `
+      { boards(ids: [${TEMPLATE_BOARD_ID}]) {
+          columns { id title type }
+          groups { id title }
+        } }`);
+    const templateColumns = schema.boards[0].columns.filter(c => c.type !== 'name' && c.type !== 'subtasks');
+    const templateGroups = schema.boards[0].groups;
+
+    // Pull every item (with subitems) from the template, grouped
+    let allItems = [];
+    let cursor = null;
+    do {
+      const data = await mondayCall(token, `
+        query($cursor: String) {
+          boards(ids: [${TEMPLATE_BOARD_ID}]) {
+            items_page(limit: 100, cursor: $cursor) {
+              cursor
+              items {
+                id name
+                group { id title }
+                column_values { id type text value }
+                subitems { id name column_values { id type text value } }
+              }
+            }
+          }
+        }`, { cursor });
+      const page = data.boards[0].items_page;
+      allItems = allItems.concat(page.items);
+      cursor = page.cursor;
+    } while (cursor);
+
+    setStatus('Creating new board...', 'working');
     const boardData = await mondayCall(token, `
       mutation($name: String!, $ws: ID!) {
         create_board(board_name: $name, board_kind: public, workspace_id: $ws) { id }
       }`, { name: projectName, ws: WORKSPACE_ID });
     const boardId = boardData.create_board.id;
 
-    setStatus('Adding columns...', 'working');
-    async function createColumn(title, type) {
+    setStatus('Creating matching columns...', 'working');
+    const colIdMap = {}; // template col id -> new board col id
+    for (const col of templateColumns) {
       const d = await mondayCall(token, `
         mutation($boardId: ID!, $title: String!, $type: ColumnType!) {
           create_column(board_id: $boardId, title: $title, column_type: $type) { id }
-        }`, { boardId, title, type });
-      return d.create_column.id;
+        }`, { boardId, title: col.title, type: col.type });
+      colIdMap[col.id] = d.create_column.id;
     }
-    const durationCol = await createColumn('Duration (weeks)', 'numbers');
-    const startDateCol = await createColumn('Start Date', 'date');
-    const timelineCol = await createColumn('Stage Timeline', 'timeline');
-    const depCol = await createColumn('Depends On', 'dependency');
-    const addressCol = await createColumn('Address', 'text');
-    const valueCol = await createColumn('Value', 'text');
+    const textColId = colIdMap[templateColumns.find(c => c.type === 'text')?.id];
+    const timelineColId = colIdMap[templateColumns.find(c => c.type === 'timeline')?.id];
+    const depColTemplateId = templateColumns.find(c => c.type === 'dependency')?.id;
+    const depColId = depColTemplateId ? colIdMap[depColTemplateId] : null;
 
-    setStatus('Creating Project Details group...', 'working');
-    const groupData = await mondayCall(token, `
-      mutation($boardId: ID!) {
-        create_group(board_id: $boardId, group_name: "Project Details", group_color: "#579bfc") { id }
-      }`, { boardId });
-    const groupId = groupData.create_group.id;
-
-    // Project Start Date item
-    await mondayCall(token, `
-      mutation($boardId: ID!, $groupId: String!, $colVals: JSON!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: "Project Start Date", column_values: $colVals) { id }
-      }`, { boardId, groupId, colVals: JSON.stringify({ [startDateCol]: startDate }) });
-
-    // Address item
-    await mondayCall(token, `
-      mutation($boardId: ID!, $groupId: String!, $colVals: JSON!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: "Address", column_values: $colVals) { id }
-      }`, { boardId, groupId, colVals: JSON.stringify({ [addressCol]: address || 'TBC' }) });
-
-    // Client item
-    await mondayCall(token, `
-      mutation($boardId: ID!, $groupId: String!, $colVals: JSON!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: "Client", column_values: $colVals) { id }
-      }`, { boardId, groupId, colVals: JSON.stringify({ [valueCol]: client || 'GRM' }) });
-
-    // Planning Authority item
-    await mondayCall(token, `
-      mutation($boardId: ID!, $groupId: String!, $colVals: JSON!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: "Planning Authority", column_values: $colVals) { id }
-      }`, { boardId, groupId, colVals: JSON.stringify({ [valueCol]: planningAuthority || 'TBC' }) });
-
-    setStatus('Adding project detail fields...', 'working');
-    for (const name of PROJECT_DETAIL_ITEMS) {
-      await mondayCall(token, `
-        mutation($boardId: ID!, $groupId: String!, $name: String!) {
-          create_item(board_id: $boardId, group_id: $groupId, item_name: $name) { id }
-        }`, { boardId, groupId, name });
+    setStatus('Creating groups...', 'working');
+    const groupIdMap = {};
+    for (const g of templateGroups) {
+      const d = await mondayCall(token, `
+        mutation($boardId: ID!, $name: String!) {
+          create_group(board_id: $boardId, group_name: $name) { id }
+        }`, { boardId, name: g.title });
+      groupIdMap[g.id] = d.create_group.id;
     }
 
-    setStatus('Reading durations from master template...', 'working');
-    const durations = await fetchTemplateDurations(token);
+    // Work out earliest date across the whole template so we can shift everything
+    // relative to the new start date while preserving spacing between tasks.
+    let earliestTemplateDate = null;
+    allItems.forEach(item => {
+      const tl = item.column_values.find(c => c.id === Object.keys(colIdMap).find(k => colIdMap[k] === timelineColId));
+      if (tl && tl.text) {
+        const from = tl.text.split(' - ')[0];
+        if (from && (!earliestTemplateDate || from < earliestTemplateDate)) earliestTemplateDate = from;
+      }
+    });
 
-    setStatus('Building programme stages...', 'working');
-    let cursor = startDate;
-    const stageIds = [];
-    for (let i = 0; i < STAGE_NAMES.length; i++) {
-      const from = cursor;
-      const to = addWeeks(from, durations[i]);
-      cursor = to;
-      const colVals = {
-        [durationCol]: durations[i],
-        [timelineCol]: { from, to }
-      };
-      const itemData = await mondayCall(token, `
-        mutation($boardId: ID!, $name: String!, $colVals: JSON!) {
-          create_item(board_id: $boardId, item_name: $name, column_values: $colVals) { id }
-        }`, { boardId, name: STAGE_NAMES[i], colVals: JSON.stringify(colVals) });
-      stageIds.push(itemData.create_item.id);
+    setStatus('Building project sections...', 'working');
+    const itemIdMap = {}; // template item id -> new item id
+    for (const item of allItems) {
+      const newGroupId = groupIdMap[item.group.id];
+      const colVals = {};
+
+      // Prefill known fields
+      let textValue = '';
+      if (item.name === 'Client') textValue = client || 'GRM';
+      else if (item.name === 'Planning Authority') textValue = planningAuthority || 'TBC';
+      else if (item.name === 'Address') textValue = address || 'TBC';
+      if (textValue && textColId) colVals[textColId] = textValue;
+
+      // Shift timeline relative to new start date
+      const tlColTemplateId = Object.keys(colIdMap).find(k => colIdMap[k] === timelineColId);
+      const tl = item.column_values.find(c => c.id === tlColTemplateId);
+      if (tl && tl.text && earliestTemplateDate && timelineColId) {
+        const [from, to] = tl.text.split(' - ');
+        const offsetFromStart = (new Date(from) - new Date(earliestTemplateDate)) / 86400000;
+        const duration = (new Date(to) - new Date(from)) / 86400000;
+        const newFrom = addDays(startDate, offsetFromStart);
+        const newTo = addDays(newFrom, duration);
+        colVals[timelineColId] = { from: newFrom, to: newTo };
+      }
+
+      const d = await mondayCall(token, `
+        mutation($boardId: ID!, $groupId: String!, $name: String!, $colVals: JSON!) {
+          create_item(board_id: $boardId, group_id: $groupId, item_name: $name, column_values: $colVals) { id }
+        }`, { boardId, groupId: newGroupId, name: item.name, colVals: JSON.stringify(colVals) });
+      itemIdMap[item.id] = d.create_item.id;
+
+      // Replicate subitems
+      for (const sub of (item.subitems || [])) {
+        await mondayCall(token, `
+          mutation($parentId: ID!, $name: String!) {
+            create_subitem(parent_item_id: $parentId, item_name: $name) { id }
+          }`, { parentId: d.create_item.id, name: sub.name });
+      }
     }
 
-    setStatus('Linking stage dependencies...', 'working');
-    for (let i = 1; i < stageIds.length; i++) {
-      const depVal = { linkedPulseIds: [{ linkedPulseId: parseInt(stageIds[i-1]) }] };
-      await mondayCall(token, `
-        mutation($boardId: ID!, $itemId: ID!, $colVals: JSON!) {
-          change_column_value(board_id: $boardId, item_id: $itemId, column_id: "${depCol}", value: $colVals) { id }
-        }`, { boardId, itemId: stageIds[i], colVals: JSON.stringify(depVal) });
+    // Second pass: now that every item exists, wire up dependencies
+    if (depColId) {
+      setStatus('Linking dependencies...', 'working');
+      for (const item of allItems) {
+        const depCol = item.column_values.find(c => c.id === depColTemplateId);
+        if (!depCol || !depCol.value) continue;
+        let parsed;
+        try { parsed = JSON.parse(depCol.value); } catch (e) { continue; }
+        const linkedIds = (parsed.linkedPulseIds || []).map(l => l.linkedPulseId);
+        const newLinkedIds = linkedIds.map(id => itemIdMap[id]).filter(Boolean);
+        if (newLinkedIds.length === 0) continue;
+        const newDepVal = { linkedPulseIds: newLinkedIds.map(id => ({ linkedPulseId: parseInt(id) })) };
+        await mondayCall(token, `
+          mutation($boardId: ID!, $itemId: ID!, $val: JSON!) {
+            change_column_value(board_id: $boardId, item_id: $itemId, column_id: "${depColId}", value: $val) { id }
+          }`, { boardId, itemId: itemIdMap[item.id], val: JSON.stringify(newDepVal) });
+      }
     }
 
     setStatus('✅ Board created successfully!', 'ok');
     const link = document.getElementById('boardLink');
-    // domain unknown from token alone — user's account slug
     link.href = `https://vitaarchitecture.monday.com/boards/${boardId}`;
     document.getElementById('resultLink').style.display = 'block';
 
   } catch (e) {
-    setStatus('❌ Error: ' + e.message + '\n\nIf this is a CORS or network error, monday.com may block direct browser calls — this would need a small backend relay instead.', 'err');
+    setStatus('❌ Error: ' + e.message, 'err');
   } finally {
     btn.disabled = false;
   }
