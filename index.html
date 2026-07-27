@@ -275,12 +275,18 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
       const newGroupId = groupIdMap[item.group.id];
       const colVals = {};
 
-      // Prefill known fields
-      let textValue = '';
-      if (item.name === 'Client') textValue = client || 'GRM';
-      else if (item.name === 'Planning Authority') textValue = planningAuthority || 'TBC';
-      else if (item.name === 'Address') textValue = address || 'TBC';
-      if (textValue && textColId) colVals[textColId] = textValue;
+      // Copy every column value from the template item as-is (status, people, etc.)
+      for (const col of templateColumns) {
+        if (col.type === 'timeline' || col.type === 'dependency') continue; // handled separately below/after
+        const newColId = colIdMap[col.id];
+        const srcVal = item.column_values.find(c => c.id === col.id);
+        if (col.type === 'text' && item.name === 'Client') { colVals[newColId] = client || 'GRM'; continue; }
+        if (col.type === 'text' && item.name === 'Planning Authority') { colVals[newColId] = planningAuthority || 'TBC'; continue; }
+        if (col.type === 'text' && item.name === 'Address') { colVals[newColId] = address || 'TBC'; continue; }
+        if (srcVal && srcVal.value) {
+          try { colVals[newColId] = JSON.parse(srcVal.value); } catch (e) { /* skip unparseable */ }
+        }
+      }
 
       // Shift timeline relative to new start date
       const tlColTemplateId = Object.keys(colIdMap).find(k => colIdMap[k] === timelineColId);
