@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GRM Project Kickoff</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #14151f;
+    color: #fff;
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: #1a1d29;
+    border-radius: 14px;
+    padding: 32px;
+    max-width: 480px;
+    width: 100%;
+    border: 1px solid #2a2d3d;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  .sub { color: #9699a6; font-size: 13px; margin-bottom: 24px; }
+  label { font-size: 13px; color: #c5c7d0; font-weight: 600; display: block; margin-bottom: 6px; }
+  .field { margin-bottom: 18px; }
+  input[type="text"], input[type="date"], input[type="password"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #33364a;
+    background: #23263a;
+    color: #fff;
+    font-size: 14px;
+  }
+  input:focus { outline: none; border-color: #579bfc; }
+  .size-row { display: flex; gap: 8px; }
+  .size-btn {
+    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #33364a;
+    background: #23263a; color: #c5c7d0; cursor: pointer; text-align: center;
+    font-weight: 600; font-size: 13px; transition: all .15s;
+  }
+  .size-btn.selected { background: #579bfc; border-color: #579bfc; color: #fff; }
+  button.submit {
+    width: 100%; padding: 13px; border-radius: 8px; border: none;
+    background: #00c875; color: #fff; font-weight: 700; font-size: 14px;
+    cursor: pointer; margin-top: 8px;
+  }
+  button.submit:disabled { background: #33364a; cursor: not-allowed; }
+  button.submit:hover:not(:disabled) { background: #00b368; }
+  .token-box {
+    background: #23263a; border: 1px solid #33364a; border-radius: 8px;
+    padding: 14px; margin-bottom: 20px; font-size: 12px; color: #9699a6;
+  }
+  .token-box a { color: #579bfc; }
+  #status { margin-top: 16px; font-size: 13px; white-space: pre-line; }
+  .ok { color: #00c875; }
+  .err { color: #ff5c72; }
+  .working { color: #fdab3d; }
+  #resultLink { display: none; margin-top: 14px; }
+  #resultLink a {
+    display: block; text-align: center; background: #579bfc; color: #fff;
+    padding: 10px; border-radius: 8px; text-decoration: none; font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🚀 GRM Project Kickoff</h1>
+  <div class="sub">Creates a new project board in GRM Energy Ltd from the S/M/L programme template.</div>
+
+  <div class="token-box" id="tokenSection">
+    <label style="margin-bottom:8px;">monday.com API Token</label>
+    <input type="password" id="apiToken" placeholder="Paste your personal API token" />
+    <div style="margin-top:8px;">Get yours from monday.com → Avatar → Admin → API, or Profile → Developers. Stored only in this browser.</div>
+  </div>
+
+  <div class="field">
+    <label>Select from Project Pipeline</label>
+    <select id="pipelinePicker" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #33364a; background:#23263a; color:#fff; font-size:14px;">
+      <option value="">Loading pipeline projects...</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Project Name</label>
+    <input type="text" id="projectName" placeholder="Auto-filled from pipeline" readonly style="opacity:0.7;" />
+  </div>
+
+  <div class="field">
+    <label>Address</label>
+    <input type="text" id="address" placeholder="Auto-filled from pipeline" readonly style="opacity:0.7;" />
+  </div>
+
+  <div class="field">
+    <label>Template Size</label>
+    <div class="size-row">
+      <div class="size-btn selected" data-size="S">S - Small</div>
+      <div class="size-btn" data-size="M">M - Medium</div>
+      <div class="size-btn" data-size="L">L - Large</div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Start Date</label>
+    <input type="date" id="startDate" />
+  </div>
+
+  <button class="submit" id="submitBtn">Create Project Board</button>
+  <div id="status"></div>
+  <div id="resultLink"><a id="boardLink" href="#" target="_blank">Open New Board →</a></div>
+</div>
+
+<script>
+const WORKSPACE_ID = 16085486;
+const PIPELINE_BOARD_ID = 18419311248;
+const PIPELINE_ADDRESS_COL = "text_mm4n4axw";
+const PIPELINE_CLIENT_COL = "color_mm4nnk8x";
+
+// Durations in weeks per stage — sourced from "NEW PROJECT TEMPLATE - BEN DO NOT CHANGE TIMES" (board 18423661718)
+const TEMPLATES = {
+  S: [2, 3, 1, 13, 12],
+  M: [2, 3, 1, 13, 12],
+  L: [2, 3, 1, 13, 12]
+};
+
+const STAGE_NAMES = [
+  "Stage 0 - Strategic Definition",
+  "Stage 1 - Preparation and Brief",
+  "Stage 2 - Concept Design",
+  "Stage 3 - Developed Design",
+  "Stage 4 - Technical Design"
+];
+
+const PROJECT_DETAIL_ITEMS = [
+  "Client","Planning Authority","Title Number","Site Size","Project Brief",
+  "Listed Use Class","Agricultural Land Classification","Listed Buildings","Flooding",
+  "National Parks","Green Belt","AONB","Conservation Area","SSSI","Article 4 Area",
+  "Public Rights of Way","Scheduled Monuments","Ancient Woodland","Battlefields"
+];
+
+let selectedSize = 'S';
+document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+
+// Load saved token
+const savedToken = localStorage.getItem('monday_api_token');
+if (savedToken) document.getElementById('apiToken').value = savedToken;
+
+let pipelineItems = [];
+
+async function loadPipelineItems() {
+  const token = document.getElementById('apiToken').value.trim();
+  const picker = document.getElementById('pipelinePicker');
+  if (!token) {
+    picker.innerHTML = '<option value="">Paste your API token first</option>';
+    return;
+  }
+  picker.innerHTML = '<option value="">Loading pipeline projects...</option>';
+  try {
+    const data = await mondayCall(token, `
+      query($boardId: ID!) {
+        boards(ids: [$boardId]) {
+          items_page(limit: 100) {
+            items {
+              id
+              name
+              column_values(ids: ["${PIPELINE_ADDRESS_COL}", "${PIPELINE_CLIENT_COL}"]) {
+                id
+                text
+              }
+            }
+          }
+        }
+      }`, { boardId: PIPELINE_BOARD_ID });
+    pipelineItems = data.boards[0].items_page.items;
+    picker.innerHTML = '<option value="">-- Select a project --</option>' +
+      pipelineItems.map(it => `<option value="${it.id}">${it.name}</option>`).join('');
+
+    // Auto-select if item ID passed via URL (?item=12345)
+    const params = new URLSearchParams(window.location.search);
+    const preselectId = params.get('item');
+    if (preselectId) {
+      picker.value = preselectId;
+      picker.dispatchEvent(new Event('change'));
+    }
+  } catch (e) {
+    picker.innerHTML = '<option value="">Failed to load — check token</option>';
+  }
+}
+
+document.getElementById('apiToken').addEventListener('blur', loadPipelineItems);
+if (savedToken) loadPipelineItems();
+
+document.getElementById('pipelinePicker').addEventListener('change', (e) => {
+  const item = pipelineItems.find(it => it.id === e.target.value);
+  if (!item) {
+    document.getElementById('projectName').value = '';
+    document.getElementById('address').value = '';
+    return;
+  }
+  document.getElementById('projectName').value = item.name;
+  const addressCol = item.column_values.find(c => c.id === PIPELINE_ADDRESS_COL);
+  document.getElementById('address').value = addressCol ? addressCol.text : '';
+});
+
+document.querySelectorAll('.size-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedSize = btn.dataset.size;
+    document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+});
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = cls || '';
+}
+
+async function mondayCall(token, query, variables) {
+  const res = await fetch('https://api.monday.com/v2', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token
+    },
+    body: JSON.stringify({ query, variables })
+  });
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors[0].message);
+  return json.data;
+}
+
+function addWeeks(dateStr, weeks) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + weeks * 7);
+  return d.toISOString().split('T')[0];
+}
+
+document.getElementById('submitBtn').addEventListener('click', async () => {
+  const token = document.getElementById('apiToken').value.trim();
+  const projectName = document.getElementById('projectName').value.trim();
+  const address = document.getElementById('address').value.trim();
+  const startDate = document.getElementById('startDate').value;
+
+  if (!token) { setStatus('Please paste your monday.com API token.', 'err'); return; }
+  if (!projectName) { setStatus('Please enter a project name.', 'err'); return; }
+
+  localStorage.setItem('monday_api_token', token);
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('resultLink').style.display = 'none';
+
+  try {
+    setStatus('Creating board...', 'working');
+    const boardData = await mondayCall(token, `
+      mutation($name: String!, $ws: ID!) {
+        create_board(board_name: $name, board_kind: public, workspace_id: $ws) { id }
+      }`, { name: projectName, ws: WORKSPACE_ID });
+    const boardId = boardData.create_board.id;
+
+    setStatus('Adding columns...', 'working');
+    async function createColumn(title, type) {
+      const d = await mondayCall(token, `
+        mutation($boardId: ID!, $title: String!, $type: ColumnType!) {
+          create_column(board_id: $boardId, title: $title, column_type: $type) { id }
+        }`, { boardId, title, type });
+      return d.create_column.id;
+    }
+    const durationCol = await createColumn('Duration (weeks)', 'numbers');
+    const startDateCol = await createColumn('Start Date', 'date');
+    const timelineCol = await createColumn('Stage Timeline', 'timeline');
+    const depCol = await createColumn('Depends On', 'dependency');
+    const addressCol = await createColumn('Address', 'text');
+
+    setStatus('Creating Project Details group...', 'working');
+    const groupData = await mondayCall(token, `
+      mutation($boardId: ID!) {
+        create_group(board_id: $boardId, group_name: "Project Details", group_color: "#579bfc") { id }
+      }`, { boardId });
+    const groupId = groupData.create_group.id;
+
+    // Project Start Date item
+    await mondayCall(token, `
+      mutation($boardId: ID!, $groupId: String!, $colVals: JSON!) {
+        create_item(board_id: $boardId, group_id: $groupId, item_name: "Project Start Date", column_values: $colVals) { id }
+      }`, { boardId, groupId, colVals: JSON.stringify({ [startDateCol]: startDate }) });
+
+    // Address item
+    await mondayCall(token, `
+      mutation($boardId: ID!, $groupId: String!, $colVals: JSON!) {
+        create_item(board_id: $boardId, group_id: $groupId, item_name: "Address", column_values: $colVals) { id }
+      }`, { boardId, groupId, colVals: JSON.stringify({ [addressCol]: address || 'TBC' }) });
+
+    setStatus('Adding project detail fields...', 'working');
+    for (const name of PROJECT_DETAIL_ITEMS) {
+      await mondayCall(token, `
+        mutation($boardId: ID!, $groupId: String!, $name: String!) {
+          create_item(board_id: $boardId, group_id: $groupId, item_name: $name) { id }
+        }`, { boardId, groupId, name });
+    }
+
+    setStatus('Building programme stages...', 'working');
+    const durations = TEMPLATES[selectedSize];
+    let cursor = startDate;
+    const stageIds = [];
+    for (let i = 0; i < STAGE_NAMES.length; i++) {
+      const from = cursor;
+      const to = addWeeks(from, durations[i]);
+      cursor = to;
+      const colVals = {
+        [durationCol]: durations[i],
+        [timelineCol]: { from, to }
+      };
+      const itemData = await mondayCall(token, `
+        mutation($boardId: ID!, $name: String!, $colVals: JSON!) {
+          create_item(board_id: $boardId, item_name: $name, column_values: $colVals) { id }
+        }`, { boardId, name: STAGE_NAMES[i], colVals: JSON.stringify(colVals) });
+      stageIds.push(itemData.create_item.id);
+    }
+
+    setStatus('Linking stage dependencies...', 'working');
+    for (let i = 1; i < stageIds.length; i++) {
+      const depVal = { linkedPulseIds: [{ linkedPulseId: parseInt(stageIds[i-1]) }] };
+      await mondayCall(token, `
+        mutation($boardId: ID!, $itemId: ID!, $colVals: JSON!) {
+          change_column_value(board_id: $boardId, item_id: $itemId, column_id: "${depCol}", value: $colVals) { id }
+        }`, { boardId, itemId: stageIds[i], colVals: JSON.stringify(depVal) });
+    }
+
+    setStatus('✅ Board created successfully!', 'ok');
+    const link = document.getElementById('boardLink');
+    // domain unknown from token alone — user's account slug
+    link.href = `https://vitaarchitecture.monday.com/boards/${boardId}`;
+    document.getElementById('resultLink').style.display = 'block';
+
+  } catch (e) {
+    setStatus('❌ Error: ' + e.message + '\n\nIf this is a CORS or network error, monday.com may block direct browser calls — this would need a small backend relay instead.', 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
