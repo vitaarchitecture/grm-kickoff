@@ -79,11 +79,74 @@ async function mondayCall(token, query, variables) {
   return json.data;
 }
 
-async function geocodeAddress(address) {
-  const cacheKey = 'geocode_' + address;
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// --- Open Location Code (Google "plus code") support ------------------------
+// Site addresses on the Pipeline board are plus codes, e.g. "49RQ+GPR Matlock".
+// These are far more precise than a street address or postcode, but Nominatim
+// cannot resolve them at all. Short codes have their first 4 characters
+// trimmed, so we geocode the locality ("Matlock") for a reference point,
+// recover the full code from it, then decode to exact coordinates locally.
+const OLC_ALPHABET = '23456789CFGHJMPQRVWX';
+const OLC_SEP_POS = 8;
+const OLC_PAIR_RES = [20, 1, 0.05, 0.0025, 0.000125];
+const OLC_GRID_ROWS = 5, OLC_GRID_COLS = 4;
+const OLC_RE = new RegExp('^([' + OLC_ALPHABET + ']{2,8}\\+[' + OLC_ALPHABET + ']{2,3})\\s*(.*)$', 'i');
+
+function olcDecode(code) {
+  const d = code.replace('+', '').replace(/0+$/, '').toUpperCase();
+  let lat = -90, lng = -180, latRes = 20, lngRes = 20, i = 0;
+  for (; i < Math.min(d.length, 10); i += 2) {
+    const res = OLC_PAIR_RES[i / 2];
+    lat += OLC_ALPHABET.indexOf(d[i]) * res;
+    lng += OLC_ALPHABET.indexOf(d[i + 1]) * res;
+    latRes = res; lngRes = res;
+  }
+  for (; i < Math.min(d.length, 15); i++) {           // grid refinement digits
+    const v = OLC_ALPHABET.indexOf(d[i]);
+    latRes /= OLC_GRID_ROWS; lngRes /= OLC_GRID_COLS;
+    lat += Math.floor(v / OLC_GRID_COLS) * latRes;
+    lng += (v % OLC_GRID_COLS) * lngRes;
+  }
+  return { lat: lat + latRes / 2, lng: lng + lngRes / 2 };  // cell centre
+}
+
+function olcEncodePrefix(lat, lng, n) {
+  let la = lat + 90, ln = lng + 180, out = '';
+  for (let i = 0; i < n / 2; i++) {
+    const res = OLC_PAIR_RES[i];
+    const latD = Math.floor(la / res), lngD = Math.floor(ln / res);
+    out += OLC_ALPHABET[latD] + OLC_ALPHABET[lngD];
+    la -= latD * res; ln -= lngD * res;
+  }
+  return out;
+}
+
+function olcRecoverNearest(short, refLat, refLng) {
+  const padding = OLC_SEP_POS - short.indexOf('+');
+  if (padding <= 0) return olcDecode(short);          // already a full code
+  const resolution = Math.pow(20, 2 - padding / 2), half = resolution / 2;
+  let { lat, lng } = olcDecode(olcEncodePrefix(refLat, refLng, padding) + short);
+  if (refLat + half < lat && lat - resolution >= -90) lat -= resolution;
+  else if (refLat - half > lat && lat + resolution <= 90) lat += resolution;
+  if (refLng + half < lng && lng - resolution >= -180) lng -= resolution;
+  else if (refLng - half > lng && lng + resolution <= 180) lng += resolution;
+  return { lat, lng };
+}
+
+// Nominatim permits 1 request/sec, so real network calls are spaced out here
+// rather than by the caller — cached and plus-code lookups then cost nothing.
+let lastNominatimCall = 0;
+async function nominatimLookup(query) {
+  const cacheKey = 'geocode_' + query;
   const cached = localStorage.getItem(cacheKey);
   if (cached) return JSON.parse(cached);
-  const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=gb&limit=1&q=${encodeURIComponent(address)}`;
+
+  const wait = 1100 - (Date.now() - lastNominatimCall);
+  if (wait > 0) await sleep(wait);
+  lastNominatimCall = Date.now();
+
+  const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=gb&limit=1&q=${encodeURIComponent(query)}`;
   const res = await fetch(url);
   const data = await res.json();
   if (data.length === 0) return null;
@@ -92,7 +155,20 @@ async function geocodeAddress(address) {
   return coords;
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+// Accepts a plus code ("49RQ+GPR Matlock"), a postcode ("PA16 0AL"), or any
+// free-text address. Returns { lat, lng } or null.
+async function geocodeAddress(address) {
+  const plus = address.match(OLC_RE);
+  if (!plus) return nominatimLookup(address + ', UK');
+
+  const short = plus[1].toUpperCase();
+  const locality = plus[2].trim();
+  if (OLC_SEP_POS - short.indexOf('+') <= 0) return olcDecode(short);
+  if (!locality) return null;         // short code with no reference locality
+  const ref = await nominatimLookup(locality + ', UK');
+  if (!ref) return null;
+  return olcRecoverNearest(short, ref.lat, ref.lng);
+}
 
 async function loadMap() {
   const token = document.getElementById('apiToken').value.trim();
@@ -144,20 +220,19 @@ async function loadMap() {
       if (isHighRisk) color = '#df2f4a';
       else if (score >= 4) color = '#00c875';
 
-      setStatus(`Geocoding "${item.name}"... (${plotted} plotted so far)`, 'working');
+      setStatus(`Locating "${item.name}"... (${plotted} plotted so far)`, 'working');
       try {
-        const coords = await geocodeAddress(address + ', UK');
-        if (!coords) { skipped++; skipReasons.push(`${item.name}: address not found`); await sleep(1100); continue; }
+        const coords = await geocodeAddress(address);
+        if (!coords) { skipped++; skipReasons.push(`${item.name}: address not found ("${address}")`); continue; }
 
         L.circleMarker([coords.lat, coords.lng], {
           radius: 9, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.9
-        }).addTo(leafletMap).bindPopup(`<b>${item.name}</b><br>Score: ${score}${isHighRisk ? '<br><span style="color:#df2f4a">⚠ High Risk</span>' : ''}`);
+        }).addTo(leafletMap).bindPopup(`<b>${item.name}</b><br>${address}<br>Score: ${score}${isHighRisk ? '<br><span style="color:#df2f4a">⚠ High Risk</span>' : ''}`);
         plotted++;
       } catch (geoErr) {
         skipped++;
         skipReasons.push(`${item.name}: ${geoErr.message}`);
       }
-      await sleep(1100);
     }
 
     console.log('Skip reasons:', skipReasons);
