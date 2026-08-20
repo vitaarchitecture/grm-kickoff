@@ -2,8 +2,8 @@ name: Sync Pipeline Dates
 
 on:
   schedule:
-    - cron: '0 * * * *'   # every hour, on the hour
-  workflow_dispatch:        # lets you trigger it manually too, from the Actions tab
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
