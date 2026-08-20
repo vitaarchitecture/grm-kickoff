@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'   # every hour, on the hour
   workflow_dispatch:        # lets you trigger it manually too, from the Actions tab
 
+permissions:
+  contents: write           # needed to commit grm-data.json back to the repo
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -13,7 +16,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Run date sync
+      - name: Install dependencies
+        run: npm install
+      - name: Run date sync + map data export
         env:
           MONDAY_TOKEN: ${{ secrets.MONDAY_TOKEN }}
         run: node sync.js
+      - name: Commit map data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add grm-data.json
+          git diff --staged --quiet || (git commit -m "Update map data" && git push)
