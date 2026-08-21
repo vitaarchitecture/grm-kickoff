@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T08:49:09.954Z",
+  "generated_at": "2026-08-21T09:42:48.770Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -189,8 +189,8 @@
       "locality": "Bristol",
       "lat": 51.52978750000001,
       "lng": -2.594671875000005,
-      "priority": 4,
-      "grm_status": "Under review",
+      "priority": 5,
+      "grm_status": "Potential to Proceed",
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-08-17",
@@ -198,7 +198,7 @@
       "end_date": "2027-03-20",
       "board_url": "https://vitaarchitecture.monday.com/boards/18426891788",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
-      "site_review_url": null
+      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3194944247/AA-013%20Bristol%20BS34%205TL%20Site%20Review.pdf"
     },
     {
       "id": "12368424621",
