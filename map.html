@@ -67,7 +67,7 @@
   sizeMap();
 
   const map = L.map('map').setView([54.5, -3.5], 6);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     maxZoom: 19
   }).addTo(map);
@@ -107,7 +107,7 @@
         if (it.lat == null || it.lng == null) continue;
         const c = colourFor(it);
         const mk = L.circleMarker([it.lat, it.lng], {
-          radius: 9, color: c, weight: 2, fillColor: c, fillOpacity: 0.55
+          radius: 9, color: '#fff', weight: 1.5, fillColor: c, fillOpacity: 0.9
         }).addTo(layer);
 
         const rows = [];
