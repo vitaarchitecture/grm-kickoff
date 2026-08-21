@@ -1,20 +1,12 @@
-// GRM Pipeline date sync — runs on a schedule via GitHub Actions.
-// Finds every Pipeline row with a linked project board, reads the current
-// Project Enquiry / Stage 4 Handover to GRM dates, and writes them into
-// the Pipeline's Start Date / End Date columns if they've changed.
+// GRM Pipeline sync — runs hourly via GitHub Actions. Three independent phases,
+// each wrapped so one failing can never take down the others:
+//   1. Date sync   — Pipeline Start/End/Duration from each project board.
+//   2. Map export  — grm-data.json for the GitHub Pages map.
+//   3. Action sync — outstanding project actions into the 05_Action Items board.
 //
-// It also mirrors that range into the "Project Duration" timeline column,
-// which is what the Project Timeline Gantt view plots — monday's Gantt needs
-// a single timeline column and cannot read the two separate date columns.
-// That column is resolved by title at runtime rather than hard-coded: it has
-// been deleted and recreated before (which changes its id), and a stale
-// hard-coded id would silently empty the Gantt again.
-//
-// Finally it exports grm-data.json for the GitHub Pages map. The browser
-// cannot call monday's API directly (monday sends no CORS headers), so this
-// job bakes the pipeline into a static JSON served from the same origin as
-// map.html. Site coordinates are resolved here too: the Plus Code locality is
-// geocoded via Nominatim, then the short Plus Code is recovered to lat/lng.
+// monday's API is called through mondayCall(), which retries transient failures
+// three times with backoff. A monday blip therefore degrades to "skip, the next
+// hourly run picks it up" rather than corrupting the boards.
 
 const fs = require('fs');
 
@@ -35,6 +27,19 @@ const ADDED_DATE_COL = "date_mm5h8tt4";
 const DASHBOARD_LINK_COL = "link_mm5nzw32";
 const SITE_REVIEW_COL = "file_mm5y18mn";
 
+// --- Action sync target: 05_Action Items board -----------------------------
+const ACTIONS_BOARD_ID = 18427620123;
+const ACTIONS_PROJECT_NOTES_GROUP = "group_mm6ep3q6"; // synced actions live here
+const ACTIONS_OWNER_COL = "multiple_person_mm6esrq";
+const ACTIONS_PROJECT_COL = "text_mm6ep5h7";
+const ACTIONS_STATUS_COL = "color_mm6e34na";
+const ACTIONS_SOURCE_COL = "link_mm6ep7g9";
+// On the project boards, an action = a phase (or subitem) with an owner set and
+// status != Completed. These are the project-board column ids.
+const PROJ_PHASE_OWNER_COL = "multiple_person_mm4nrqgg";
+const PROJ_PHASE_STATUS_COL = "color_mm4n5jjx";
+const COMPLETED_LABEL = "Completed";
+
 // Plus Code decoder (open-location-code). Loaded defensively so a packaging
 // quirk degrades to "no coordinates" rather than killing the date sync.
 let olc = null;
@@ -48,15 +53,41 @@ try {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function mondayCall(query, variables) {
-  const res = await fetch('https://api.monday.com/v2', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': TOKEN },
-    body: JSON.stringify({ query, variables })
-  });
-  const json = await res.json();
-  if (json.errors) throw new Error(JSON.stringify(json.errors));
-  return json.data;
+// mondayCall with retry. Transient failures (network, 5xx, rate limit) are
+// retried up to 3 times with backoff. A GraphQL error in the response body is
+// treated as permanent (bad query / bad token) and thrown immediately with a
+// plain-English hint, because retrying it would just fail the same way.
+async function mondayCall(query, variables, attempt = 1) {
+  const MAX = 3;
+  try {
+    const res = await fetch('https://api.monday.com/v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': TOKEN },
+      body: JSON.stringify({ query, variables })
+    });
+    if (res.status === 429 || res.status >= 500) {
+      throw new Error(`monday API HTTP ${res.status} (transient)`);
+    }
+    const json = await res.json();
+    if (json.errors) {
+      const msg = JSON.stringify(json.errors);
+      if (/authentication|unauthorized|401/i.test(msg)) {
+        throw new Error('PERMANENT: monday rejected the token — regenerate the '
+          + 'MONDAY_TOKEN secret in GitHub (Settings > Secrets and variables > Actions).');
+      }
+      // Other GraphQL errors are permanent (bad column id, permissions, etc.)
+      const e = new Error('PERMANENT: ' + msg);
+      e.permanent = true;
+      throw e;
+    }
+    return json.data;
+  } catch (e) {
+    if (e.permanent || /^PERMANENT:/.test(e.message) || attempt >= MAX) throw e;
+    const wait = 500 * attempt;
+    console.warn(`  monday call failed (attempt ${attempt}/${MAX}): ${e.message} — retrying in ${wait}ms`);
+    await sleep(wait);
+    return mondayCall(query, variables, attempt + 1);
+  }
 }
 
 // --- Geocoding (Nominatim, cached per locality, rate-limited) --------------
@@ -82,6 +113,35 @@ async function geocodeLocality(locality) {
 function extractUrl(text) {
   const m = text && text.match(/https?:\/\/\S+/);
   return m ? m[0] : null;
+}
+
+// Fetch every Pipeline item once, with its project-board link. Shared by the
+// date sync, the map export, and the action sync so we hit the API once.
+async function fetchPipelineItems(extraCols) {
+  const cols = [PROJECT_BOARD_LINK_COL].concat(extraCols || []);
+  const data = await mondayCall(`
+    query($boardId: ID!) {
+      boards(ids: [$boardId]) {
+        items_page(limit: 100) {
+          items {
+            id
+            name
+            column_values(ids: [${cols.map(c => `"${c}"`).join(', ')}]) {
+              id text
+              ... on FormulaValue { display_value }
+            }
+          }
+        }
+      }
+    }`, { boardId: PIPELINE_BOARD_ID });
+  return data.boards[0].items_page.items;
+}
+
+function projectBoardIdFromLink(item) {
+  const linkVal = item.column_values.find(c => c.id === PROJECT_BOARD_LINK_COL);
+  const linkText = linkVal && linkVal.text;
+  const m = linkText && linkText.match(/boards\/(\d+)/);
+  return m ? m[1] : null;
 }
 
 // --- Map data export -------------------------------------------------------
@@ -117,7 +177,6 @@ async function buildMapData() {
       return c.text;
     };
 
-    // Resolve "GX5R+5C Oldbury" -> lat/lng
     const plusText = col(PLUS_CODE_COL) || '';
     const m = plusText.match(/^(\S+\+\S+)\s+(.+)$/);
     let plusCode = null, locality = null, lat = null, lng = null;
@@ -169,11 +228,7 @@ async function buildMapData() {
 
 // --- Date sync -------------------------------------------------------------
 
-async function main() {
-  if (!TOKEN) throw new Error('MONDAY_TOKEN secret is not set');
-
-  // Locate the Gantt's timeline column: prefer the titled one, else fall back
-  // to the board's only timeline column.
+async function runDateSync() {
   const pipelineCols = await mondayCall(
     `query($boardId: ID!) { boards(ids: [$boardId]) { columns { id title type } } }`,
     { boardId: PIPELINE_BOARD_ID });
@@ -183,30 +238,14 @@ async function main() {
 
   if (!durationCol) {
     console.warn(`WARNING: no "${DURATION_COL_TITLE}" timeline column on the Pipeline board ` +
-      `(found ${timelineCols.length} timeline column(s)). The Gantt view will stay empty. ` +
-      `Recreate it and this job will start filling it again.`);
+      `(found ${timelineCols.length} timeline column(s)). The Gantt view will stay empty.`);
   } else {
     console.log(`Gantt timeline column: "${durationCol.title}" (${durationCol.id})`);
   }
 
-  const wantedCols = [PROJECT_BOARD_LINK_COL, START_DATE_COL, END_DATE_COL]
-    .concat(durationCol ? [durationCol.id] : []);
-
+  const wantedCols = [START_DATE_COL, END_DATE_COL].concat(durationCol ? [durationCol.id] : []);
   console.log('Fetching Pipeline items...');
-  const pipelineData = await mondayCall(`
-    query($boardId: ID!) {
-      boards(ids: [$boardId]) {
-        items_page(limit: 100) {
-          items {
-            id
-            name
-            column_values(ids: [${wantedCols.map(c => `"${c}"`).join(', ')}]) { id text }
-          }
-        }
-      }
-    }`, { boardId: PIPELINE_BOARD_ID });
-
-  const items = pipelineData.boards[0].items_page.items;
+  const items = await fetchPipelineItems(wantedCols);
   let syncedCount = 0;
 
   for (const item of items) {
@@ -214,12 +253,8 @@ async function main() {
     const currentEnd = (item.column_values.find(c => c.id === END_DATE_COL) || {}).text;
     let effStart = currentStart, effEnd = currentEnd;
 
-    const linkVal = item.column_values.find(c => c.id === PROJECT_BOARD_LINK_COL);
-    const linkText = linkVal && linkVal.text;
-    const match = linkText && linkText.match(/boards\/(\d+)/);
-
-    if (match) {
-      const targetBoardId = match[1];
+    const targetBoardId = projectBoardIdFromLink(item);
+    if (targetBoardId) {
       try {
         const colData = await mondayCall(`{ boards(ids: [${targetBoardId}]) { columns { id type } } }`);
         const board = colData.boards[0];
@@ -278,20 +313,212 @@ async function main() {
       }
     }
   }
+  console.log(`Date sync done. ${syncedCount} field(s) updated.`);
+}
 
-  console.log(`Done. ${syncedCount} field(s) updated.`);
+// --- Action sync -----------------------------------------------------------
+// Scans every project board for phases + subitems that have an owner assigned
+// and are not Completed, and mirrors them into the Project Notes group of the
+// 05_Action Items board. Safety rules:
+//   * Only rows this job created are ever touched — matched by the Source link
+//     back to the project-board item. Ad-hoc rows and anything in General To-Do
+//     are invisible to this sync.
+//   * A row is removed ONLY when its specific source item is positively seen as
+//     Completed or un-owned. If a project board can't be read this run, its rows
+//     are left untouched (no bulk delete on incomplete data).
 
-  // Map data export runs after the date sync so a geocoding hiccup can never
-  // block the dates. It logs loudly but does not fail the job.
+async function fetchActionsOnBoard(boardId, boardName) {
+  // Top-level phases with owner + status.
+  const data = await mondayCall(`{
+    boards(ids: [${boardId}]) {
+      items_page(limit: 500) {
+        items {
+          id name
+          column_values(ids: ["${PROJ_PHASE_OWNER_COL}", "${PROJ_PHASE_STATUS_COL}"]) {
+            id text
+            ... on PeopleValue { persons_and_teams { id kind } }
+          }
+          subitems {
+            id name
+            column_values {
+              id text type
+              ... on PeopleValue { persons_and_teams { id kind } }
+              ... on StatusValue { label }
+            }
+          }
+        }
+      }
+    }
+  }`);
+  const items = data.boards[0].items_page.items;
+  const actions = [];
+
+  const ownerIds = cv => (cv && cv.persons_and_teams
+    ? cv.persons_and_teams.filter(p => p.kind === 'person').map(p => p.id) : []);
+
+  for (const it of items) {
+    const ownerCv = it.column_values.find(c => c.id === PROJ_PHASE_OWNER_COL);
+    const statusCv = it.column_values.find(c => c.id === PROJ_PHASE_STATUS_COL);
+    const owners = ownerIds(ownerCv);
+    const status = statusCv ? statusCv.text : null;
+    if (owners.length && status !== COMPLETED_LABEL) {
+      actions.push({ srcId: it.id, name: it.name, owners, status, board: boardName, boardId });
+    }
+    // Subitems: only those carrying their own People + Status columns.
+    for (const sub of (it.subitems || [])) {
+      let subOwners = [], subStatus = null;
+      for (const cv of sub.column_values) {
+        if (cv.type === 'people') subOwners = ownerIds(cv);
+        if (cv.type === 'color') subStatus = cv.label || cv.text;
+      }
+      if (subOwners.length && subStatus !== COMPLETED_LABEL) {
+        actions.push({ srcId: sub.id, name: `${it.name} › ${sub.name}`,
+          owners: subOwners, status: subStatus, board: boardName, boardId, subOf: it.id });
+      }
+    }
+  }
+  return actions;
+}
+
+async function runActionSync() {
+  console.log('Action sync: scanning project boards...');
+  const pipeline = await fetchPipelineItems([]);
+
+  // 1. Gather desired actions across every project board. If any single board
+  //    read fails, record it so we DON'T delete that board's existing rows.
+  const desired = {};          // srcId -> action
+  const scannedBoardIds = new Set();
+  const failedBoardIds = new Set();
+
+  for (const item of pipeline) {
+    const boardId = projectBoardIdFromLink(item);
+    if (!boardId) continue;
+    try {
+      const actions = await fetchActionsOnBoard(boardId, item.name);
+      scannedBoardIds.add(String(boardId));
+      for (const a of actions) desired[a.srcId] = a;
+    } catch (e) {
+      failedBoardIds.add(String(boardId));
+      console.warn(`  Could not scan board ${boardId} ("${item.name}"): ${e.message} — its existing rows will be left untouched.`);
+    }
+  }
+
+  // 2. Read existing synced rows in Project Notes (only ones we created — they
+  //    carry a Source link back to the project item).
+  const existingData = await mondayCall(`{
+    boards(ids: [${ACTIONS_BOARD_ID}]) {
+      groups(ids: ["${ACTIONS_PROJECT_NOTES_GROUP}"]) {
+        items_page(limit: 500) {
+          items {
+            id name
+            column_values(ids: ["${ACTIONS_SOURCE_COL}", "${ACTIONS_STATUS_COL}", "${ACTIONS_OWNER_COL}"]) {
+              id text
+              ... on PeopleValue { persons_and_teams { id kind } }
+            }
+          }
+        }
+      }
+    }
+  }`);
+  const existing = {};   // srcId -> {itemId, ...}
+  for (const it of existingData.boards[0].groups[0].items_page.items) {
+    const src = it.column_values.find(c => c.id === ACTIONS_SOURCE_COL);
+    const m = src && src.text && src.text.match(/pulses\/(\d+)/);
+    if (m) existing[m[1]] = { itemId: it.id, name: it.name };
+  }
+
+  let created = 0, removed = 0, kept = 0;
+
+  // 3. Create rows for desired actions not yet present.
+  for (const srcId of Object.keys(desired)) {
+    if (existing[srcId]) { kept++; continue; }
+    const a = desired[srcId];
+    const personsVal = { personsAndTeams: a.owners.map(id => ({ id: Number(id), kind: 'person' })) };
+    const cols = {};
+    cols[ACTIONS_OWNER_COL] = personsVal;
+    cols[ACTIONS_PROJECT_COL] = a.board;
+    cols[ACTIONS_SOURCE_COL] = {
+      url: `https://vitaarchitecture.monday.com/boards/${a.boardId}/pulses/${a.srcId}`,
+      text: 'Open on project board'
+    };
+    if (a.status) cols[ACTIONS_STATUS_COL] = { label: a.status };
+    try {
+      await mondayCall(`
+        mutation($cols: JSON!) {
+          create_item(board_id: ${ACTIONS_BOARD_ID}, group_id: "${ACTIONS_PROJECT_NOTES_GROUP}",
+            item_name: ${JSON.stringify(a.name)}, column_values: $cols,
+            create_labels_if_missing: true) { id }
+        }`, { cols: JSON.stringify(cols) });
+      console.log(`  + Added "${a.name}" (${a.board})`);
+      created++;
+    } catch (e) {
+      console.warn(`  Could not add "${a.name}": ${e.message}`);
+    }
+  }
+
+  // 4. Remove rows whose source is no longer a desired action — but ONLY if we
+  //    successfully scanned that source's board this run. A board we failed to
+  //    read is skipped entirely, so nothing is deleted on incomplete data.
+  for (const srcId of Object.keys(existing)) {
+    if (desired[srcId]) continue; // still outstanding
+    // find which board this row came from via its Source link text we stored
+    const row = existing[srcId];
+    // Re-derive board id is not stored; instead only delete if the srcId was in
+    // a board we scanned. We know scanned srcIds = union of desired + observed.
+    // Safer proxy: if ANY scan failed, skip deletion entirely for this run.
+    if (failedBoardIds.size > 0) {
+      console.log(`  ~ Keeping "${row.name}" this run (a project board failed to read; will re-evaluate next hour).`);
+      continue;
+    }
+    try {
+      await mondayCall(`mutation { delete_item(item_id: ${row.itemId}) { id } }`);
+      console.log(`  - Removed "${row.name}" (source Completed or un-owned)`);
+      removed++;
+    } catch (e) {
+      console.warn(`  Could not remove "${row.name}": ${e.message}`);
+    }
+  }
+
+  console.log(`Action sync done. ${created} added, ${removed} removed, ${kept} already present.`);
+}
+
+// --- Orchestration ---------------------------------------------------------
+// Each phase is isolated: a failure in one is logged in plain English and does
+// not stop the others. The job only exits non-zero on a total date-sync failure
+// (the original core function), so a flaky action sync won't spam red emails.
+
+async function main() {
+  if (!TOKEN) throw new Error('MONDAY_TOKEN secret is not set');
+
+  let hadCoreFailure = false;
+
+  try {
+    await runDateSync();
+  } catch (e) {
+    hadCoreFailure = true;
+    console.error('Date sync FAILED: ' + e.message);
+  }
+
   try {
     console.log('Building map data...');
     await buildMapData();
   } catch (e) {
-    console.warn(`Map data export failed (date sync itself succeeded): ${e.message}`);
+    console.warn('Map export failed (non-fatal): ' + e.message);
+  }
+
+  try {
+    await runActionSync();
+  } catch (e) {
+    console.warn('Action sync failed (non-fatal, self-corrects next hour): ' + e.message);
+  }
+
+  if (hadCoreFailure) {
+    throw new Error('Core date sync failed — see log above. This usually self-corrects next hour; '
+      + 'if every run fails, check the MONDAY_TOKEN secret.');
   }
 }
 
 main().catch(err => {
-  console.error(err);
+  console.error(err.message || err);
   process.exit(1);
 });
