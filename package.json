@@ -1,0 +1,7 @@
+{
+  "name": "grm-kickoff",
+  "private": true,
+  "dependencies": {
+    "open-location-code": "^1.0.0"
+  }
+}
