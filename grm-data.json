@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-26T19:10:15.013Z",
+  "generated_at": "2026-08-26T23:11:50.839Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -205,8 +205,8 @@
       "name": "AA-003 Matlock DE4 2LL",
       "plus_code": "49RQ+GPR",
       "locality": "Matlock",
-      "lat": null,
-      "lng": null,
+      "lat": 53.141362499999985,
+      "lng": -1.6107343750000243,
       "priority": 0,
       "grm_status": "Do Not Proceed",
       "client": "GRM",
@@ -223,8 +223,8 @@
       "name": "AA-005 Newport NP18 3QZ",
       "plus_code": "J299+R8Q",
       "locality": "Newport",
-      "lat": null,
-      "lng": null,
+      "lat": 51.61958750000002,
+      "lng": -2.9816406249999767,
       "priority": 0,
       "grm_status": "Do Not Proceed",
       "client": "GRM",
