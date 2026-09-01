@@ -40,6 +40,17 @@ const PROJ_PHASE_OWNER_COL = "multiple_person_mm4nrqgg";
 const PROJ_PHASE_STATUS_COL = "color_mm4n5jjx";
 const COMPLETED_LABEL = "Completed";
 
+// --- 06_Minutes source ------------------------------------------------------
+// Minutes are a source board like the project boards: a row is an outstanding
+// action when it has an "Action by" person set and Status != Done. These land
+// in their own "From Minutes" group on 05, and are removed when Done/unassigned.
+const MINUTES_BOARD_ID = 18429150281;
+const MINUTES_OWNER_COL = "multiple_person_mm6sevgf";
+const MINUTES_STATUS_COL = "color_mm6s5hzz";
+const MINUTES_ITEM_COL = "text_mm6s1fds";
+const MINUTES_DONE_LABEL = "Done";
+const ACTIONS_FROM_MINUTES_GROUP = "group_mm6swcn4"; // synced minutes live here on 05
+
 // Plus Code decoder (open-location-code). Loaded defensively so a packaging
 // quirk degrades to "no coordinates" rather than killing the date sync.
 let olc = null;
@@ -461,11 +472,7 @@ async function runActionSync() {
   //    read is skipped entirely, so nothing is deleted on incomplete data.
   for (const srcId of Object.keys(existing)) {
     if (desired[srcId]) continue; // still outstanding
-    // find which board this row came from via its Source link text we stored
     const row = existing[srcId];
-    // Re-derive board id is not stored; instead only delete if the srcId was in
-    // a board we scanned. We know scanned srcIds = union of desired + observed.
-    // Safer proxy: if ANY scan failed, skip deletion entirely for this run.
     if (failedBoardIds.size > 0) {
       console.log(`  ~ Keeping "${row.name}" this run (a project board failed to read; will re-evaluate next hour).`);
       continue;
@@ -480,6 +487,121 @@ async function runActionSync() {
   }
 
   console.log(`Action sync done. ${created} added, ${removed} removed, ${kept} already present.`);
+}
+
+// --- Minutes sync -----------------------------------------------------------
+// Reads 06_Minutes as a source board and mirrors outstanding minute actions
+// (Action by set AND Status != Done) into the "From Minutes" group on 05.
+// Same safety model as runActionSync: only touches rows it created (matched by
+// the Source link back to the minute), and removes a row only when its source
+// minute is positively Done or unassigned. If 06 can't be read this run, no
+// removals happen — nothing is deleted on incomplete data.
+async function runMinutesSync() {
+  console.log('Minutes sync: scanning 06_Minutes...');
+
+  const ownerIds = cv => (cv && cv.persons_and_teams
+    ? cv.persons_and_teams.filter(p => p.kind === 'person').map(p => p.id) : []);
+
+  // 1. Read 06_Minutes. If this fails, we skip the whole phase (and therefore
+  //    never delete existing minute rows on 05).
+  let minutes;
+  try {
+    const data = await mondayCall(`{
+      boards(ids: [${MINUTES_BOARD_ID}]) {
+        items_page(limit: 500) {
+          items {
+            id name
+            column_values(ids: ["${MINUTES_OWNER_COL}", "${MINUTES_STATUS_COL}", "${MINUTES_ITEM_COL}"]) {
+              id text
+              ... on PeopleValue { persons_and_teams { id kind } }
+            }
+          }
+        }
+      }
+    }`);
+    minutes = data.boards[0].items_page.items;
+  } catch (e) {
+    console.warn(`  Could not read 06_Minutes: ${e.message} — skipping minutes sync this run (nothing removed).`);
+    return;
+  }
+
+  // Desired = minute rows with an owner and Status != Done.
+  const desired = {};
+  for (const it of minutes) {
+    const ownerCv = it.column_values.find(c => c.id === MINUTES_OWNER_COL);
+    const statusCv = it.column_values.find(c => c.id === MINUTES_STATUS_COL);
+    const itemCv = it.column_values.find(c => c.id === MINUTES_ITEM_COL);
+    const owners = ownerIds(ownerCv);
+    const status = statusCv ? statusCv.text : null;
+    if (owners.length && status !== MINUTES_DONE_LABEL) {
+      desired[it.id] = { srcId: it.id, name: it.name, owners, status,
+        itemNo: itemCv ? itemCv.text : null };
+    }
+  }
+
+  // 2. Existing synced minute rows in the "From Minutes" group (ones we created).
+  const existingData = await mondayCall(`{
+    boards(ids: [${ACTIONS_BOARD_ID}]) {
+      groups(ids: ["${ACTIONS_FROM_MINUTES_GROUP}"]) {
+        items_page(limit: 500) {
+          items {
+            id name
+            column_values(ids: ["${ACTIONS_SOURCE_COL}"]) { id text }
+          }
+        }
+      }
+    }
+  }`);
+  const existing = {};
+  for (const it of existingData.boards[0].groups[0].items_page.items) {
+    const src = it.column_values.find(c => c.id === ACTIONS_SOURCE_COL);
+    const m = src && src.text && src.text.match(/pulses\/(\d+)/);
+    if (m) existing[m[1]] = { itemId: it.id, name: it.name };
+  }
+
+  let created = 0, removed = 0, kept = 0;
+
+  // 3. Create rows for outstanding minutes not yet on 05.
+  for (const srcId of Object.keys(desired)) {
+    if (existing[srcId]) { kept++; continue; }
+    const a = desired[srcId];
+    const cols = {};
+    cols[ACTIONS_OWNER_COL] = { personsAndTeams: a.owners.map(id => ({ id: Number(id), kind: 'person' })) };
+    cols[ACTIONS_PROJECT_COL] = a.itemNo ? `Minutes ${a.itemNo}` : 'Minutes';
+    cols[ACTIONS_SOURCE_COL] = {
+      url: `https://vitaarchitecture.monday.com/boards/${MINUTES_BOARD_ID}/pulses/${a.srcId}`,
+      text: 'Open in 06_Minutes'
+    };
+    if (a.status) cols[ACTIONS_STATUS_COL] = { label: a.status };
+    try {
+      await mondayCall(`
+        mutation($cols: JSON!) {
+          create_item(board_id: ${ACTIONS_BOARD_ID}, group_id: "${ACTIONS_FROM_MINUTES_GROUP}",
+            item_name: ${JSON.stringify(a.name)}, column_values: $cols,
+            create_labels_if_missing: true) { id }
+        }`, { cols: JSON.stringify(cols) });
+      console.log(`  + Added minute "${a.name}"`);
+      created++;
+    } catch (e) {
+      console.warn(`  Could not add minute "${a.name}": ${e.message}`);
+    }
+  }
+
+  // 4. Remove rows whose source minute is now Done or unassigned. 06 was read
+  //    successfully (we returned early otherwise), so removal is safe here.
+  for (const srcId of Object.keys(existing)) {
+    if (desired[srcId]) continue;
+    const row = existing[srcId];
+    try {
+      await mondayCall(`mutation { delete_item(item_id: ${row.itemId}) { id } }`);
+      console.log(`  - Removed minute "${row.name}" (Done or unassigned)`);
+      removed++;
+    } catch (e) {
+      console.warn(`  Could not remove minute "${row.name}": ${e.message}`);
+    }
+  }
+
+  console.log(`Minutes sync done. ${created} added, ${removed} removed, ${kept} already present.`);
 }
 
 // --- Orchestration ---------------------------------------------------------
@@ -510,6 +632,12 @@ async function main() {
     await runActionSync();
   } catch (e) {
     console.warn('Action sync failed (non-fatal, self-corrects next hour): ' + e.message);
+  }
+
+  try {
+    await runMinutesSync();
+  } catch (e) {
+    console.warn('Minutes sync failed (non-fatal, self-corrects next hour): ' + e.message);
   }
 
   if (hadCoreFailure) {
