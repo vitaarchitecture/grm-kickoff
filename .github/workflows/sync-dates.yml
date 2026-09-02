@@ -1,8 +1,6 @@
 name: Sync Pipeline Dates
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes (GitHub may delay/skip under load)
   workflow_dispatch:        # lets you trigger it manually too, from the Actions tab
 
 permissions:
