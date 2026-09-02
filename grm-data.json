@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-02T11:35:52.852Z",
+  "generated_at": "2026-09-02T11:41:07.142Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -45,10 +45,10 @@
       "locality": "Exeter",
       "lat": 50.73706249999999,
       "lng": -3.5688281249999916,
-      "priority": 6,
+      "priority": 5,
       "grm_status": "Go Ahead",
       "client": "GRM",
-      "project_status": "Go Ahead",
+      "project_status": "On Hold",
       "added": "2026-07-23",
       "start_date": "2026-07-23",
       "end_date": "2027-02-23",
@@ -57,34 +57,16 @@
       "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3159055155/AA-004%20Exeter%20EX4%202JE%20Site%20Review.odt"
     },
     {
-      "id": "12619665659",
-      "name": "AA-006 Fife KY5 0HP",
-      "plus_code": "5M9W+5GQ",
-      "locality": "Lochgelly",
-      "lat": 56.167962500000016,
-      "lng": -3.303640625000008,
-      "priority": 5,
-      "grm_status": "Potential to Proceed",
-      "client": "GRM",
-      "project_status": "Go Ahead",
-      "added": "2026-07-24",
-      "start_date": "2026-07-24",
-      "end_date": "2027-02-24",
-      "board_url": "https://vitaarchitecture.monday.com/boards/18423605254",
-      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
-      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3183475232/AA-006%20Fife%20KY5%200HP%20Site%20Review.pdf"
-    },
-    {
       "id": "12623307856",
       "name": "AA-007 Greenock",
       "plus_code": "W5H9+PC7",
       "locality": "Greenock",
       "lat": 55.9292875,
       "lng": -4.831453124999976,
-      "priority": 5,
+      "priority": 4,
       "grm_status": "Potential to Proceed",
       "client": "GRM",
-      "project_status": "Go Ahead",
+      "project_status": "On Hold",
       "added": "2026-07-24",
       "start_date": "2026-07-24",
       "end_date": "2027-02-24",
@@ -235,6 +217,24 @@
       "board_url": "https://vitaarchitecture.monday.com/boards/18423497465",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3159053425/AA-005%20Newport%20NP18%203QZ%20Site%20Review.odt"
+    },
+    {
+      "id": "12619665659",
+      "name": "AA-006 Fife KY5 0HP",
+      "plus_code": "5M9W+5GQ",
+      "locality": "Lochgelly",
+      "lat": 56.167962500000016,
+      "lng": -3.303640625000008,
+      "priority": -1,
+      "grm_status": "Potential to Proceed",
+      "client": "GRM",
+      "project_status": "Do Not Proceed",
+      "added": "2026-07-24",
+      "start_date": "2026-07-24",
+      "end_date": "2027-02-24",
+      "board_url": "https://vitaarchitecture.monday.com/boards/18423605254",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3183475232/AA-006%20Fife%20KY5%200HP%20Site%20Review.pdf"
     }
   ]
 }
