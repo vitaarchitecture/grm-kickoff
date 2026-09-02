@@ -380,7 +380,7 @@ async function fetchActionsOnBoard(boardId, boardName) {
       let subOwners = [], subStatus = null;
       for (const cv of sub.column_values) {
         if (cv.type === 'people') subOwners = ownerIds(cv);
-        if (cv.type === 'color') subStatus = cv.label || cv.text;
+        if (cv.type === 'color' || cv.type === 'status') subStatus = cv.label || cv.text;
       }
       if (subOwners.length && subStatus !== COMPLETED_LABEL) {
         actions.push({ srcId: sub.id, name: `${it.name} › ${sub.name}`,
@@ -544,6 +544,14 @@ async function runMinutesSync() {
               id text
               ... on PeopleValue { persons_and_teams { id kind } }
             }
+            subitems {
+              id name
+              column_values {
+                id text type
+                ... on PeopleValue { persons_and_teams { id kind } }
+                ... on StatusValue { label }
+              }
+            }
           }
         }
       }
@@ -562,9 +570,21 @@ async function runMinutesSync() {
     const itemCv = it.column_values.find(c => c.id === MINUTES_ITEM_COL);
     const owners = ownerIds(ownerCv);
     const status = statusCv ? statusCv.text : null;
+    const itemNo = itemCv ? itemCv.text : null;
     if (owners.length && status !== MINUTES_DONE_LABEL) {
-      desired[it.id] = { srcId: it.id, name: it.name, owners, status,
-        itemNo: itemCv ? itemCv.text : null };
+      desired[it.id] = { srcId: it.id, name: it.name, owners, status, itemNo };
+    }
+    // Subitems: only those carrying their own owner + status (owner set, not Done).
+    for (const sub of (it.subitems || [])) {
+      let subOwners = [], subStatus = null;
+      for (const cv of sub.column_values) {
+        if (cv.type === 'people') subOwners = ownerIds(cv);
+        if (cv.type === 'color' || cv.type === 'status') subStatus = cv.label || cv.text;
+      }
+      if (subOwners.length && subStatus !== MINUTES_DONE_LABEL) {
+        desired[sub.id] = { srcId: sub.id, name: `${it.name} \u203a ${sub.name}`,
+          owners: subOwners, status: subStatus, itemNo };
+      }
     }
   }
 
