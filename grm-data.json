@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-02T13:55:48.573Z",
+  "generated_at": "2026-09-02T14:01:54.169Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -133,8 +133,8 @@
       "name": "AA-013 Bristol BS34 5TL",
       "plus_code": "GCH4+W48",
       "locality": "Bristol",
-      "lat": 51.52978750000001,
-      "lng": -2.594671875000005,
+      "lat": null,
+      "lng": null,
       "priority": 5,
       "grm_status": "Potential to Proceed",
       "client": "GRM",
