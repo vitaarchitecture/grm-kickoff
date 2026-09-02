@@ -431,20 +431,49 @@ async function runActionSync() {
       }
     }
   }`);
-  const existing = {};   // srcId -> {itemId, ...}
+  const existing = {};   // srcId -> {itemId, name, ownerIds[], status, project}
   for (const it of existingData.boards[0].groups[0].items_page.items) {
     const src = it.column_values.find(c => c.id === ACTIONS_SOURCE_COL);
     const m = src && src.text && src.text.match(/pulses\/(\d+)/);
-    if (m) existing[m[1]] = { itemId: it.id, name: it.name };
+    if (!m) continue;
+    const ownerCv = it.column_values.find(c => c.id === ACTIONS_OWNER_COL);
+    const statusCv = it.column_values.find(c => c.id === ACTIONS_STATUS_COL);
+    const projCv = it.column_values.find(c => c.id === ACTIONS_PROJECT_COL);
+    existing[m[1]] = {
+      itemId: it.id, name: it.name,
+      ownerIds: (ownerCv && ownerCv.persons_and_teams ? ownerCv.persons_and_teams.filter(p => p.kind === 'person').map(p => String(p.id)).sort() : []),
+      status: statusCv ? statusCv.text : null,
+      project: projCv ? projCv.text : null
+    };
   }
 
-  let created = 0, removed = 0, kept = 0;
+  let created = 0, removed = 0, updated = 0, kept = 0;
 
-  // 3. Create rows for desired actions not yet present.
+  // 3. Create rows for new actions; update in place when the source changed.
   for (const srcId of Object.keys(desired)) {
-    if (existing[srcId]) { kept++; continue; }
     const a = desired[srcId];
     const personsVal = { personsAndTeams: a.owners.map(id => ({ id: Number(id), kind: 'person' })) };
+    if (existing[srcId]) {
+      const ex = existing[srcId];
+      const wantOwners = a.owners.map(String).sort();
+      const nameDiff = ex.name !== a.name;
+      const ownerDiff = ex.ownerIds.join(',') !== wantOwners.join(',');
+      const statusDiff = (a.status || null) !== (ex.status || null);
+      const projDiff = (a.board || null) !== (ex.project || null);
+      if (nameDiff || ownerDiff || statusDiff || projDiff) {
+        try {
+          if (nameDiff) await mondayCall(`mutation { change_simple_column_value(board_id: ${ACTIONS_BOARD_ID}, item_id: ${ex.itemId}, column_id: "name", value: ${JSON.stringify(a.name)}) { id } }`);
+          const ucols = {};
+          if (ownerDiff) ucols[ACTIONS_OWNER_COL] = personsVal;
+          if (projDiff) ucols[ACTIONS_PROJECT_COL] = a.board;
+          if (statusDiff && a.status) ucols[ACTIONS_STATUS_COL] = { label: a.status };
+          if (Object.keys(ucols).length) await mondayCall(`mutation($cols: JSON!) { change_multiple_column_values(board_id: ${ACTIONS_BOARD_ID}, item_id: ${ex.itemId}, column_values: $cols, create_labels_if_missing: true) { id } }`, { cols: JSON.stringify(ucols) });
+          console.log(`  ~ Updated "${a.name}" (${a.board})`);
+          updated++;
+        } catch (e) { console.warn(`  Could not update "${a.name}": ${e.message}`); }
+      } else { kept++; }
+      continue;
+    }
     const cols = {};
     cols[ACTIONS_OWNER_COL] = personsVal;
     cols[ACTIONS_PROJECT_COL] = a.board;
@@ -486,7 +515,7 @@ async function runActionSync() {
     }
   }
 
-  console.log(`Action sync done. ${created} added, ${removed} removed, ${kept} already present.`);
+  console.log(`Action sync done. ${created} added, ${updated} updated, ${removed} removed, ${kept} already present.`);
 }
 
 // --- Minutes sync -----------------------------------------------------------
@@ -546,7 +575,10 @@ async function runMinutesSync() {
         items_page(limit: 500) {
           items {
             id name
-            column_values(ids: ["${ACTIONS_SOURCE_COL}"]) { id text }
+            column_values(ids: ["${ACTIONS_SOURCE_COL}", "${ACTIONS_OWNER_COL}", "${ACTIONS_STATUS_COL}", "${ACTIONS_PROJECT_COL}"]) {
+              id text
+              ... on PeopleValue { persons_and_teams { id kind } }
+            }
           }
         }
       }
@@ -556,18 +588,49 @@ async function runMinutesSync() {
   for (const it of existingData.boards[0].groups[0].items_page.items) {
     const src = it.column_values.find(c => c.id === ACTIONS_SOURCE_COL);
     const m = src && src.text && src.text.match(/pulses\/(\d+)/);
-    if (m) existing[m[1]] = { itemId: it.id, name: it.name };
+    if (!m) continue;
+    const ownerCv = it.column_values.find(c => c.id === ACTIONS_OWNER_COL);
+    const statusCv = it.column_values.find(c => c.id === ACTIONS_STATUS_COL);
+    const projCv = it.column_values.find(c => c.id === ACTIONS_PROJECT_COL);
+    existing[m[1]] = {
+      itemId: it.id, name: it.name,
+      ownerIds: (ownerCv && ownerCv.persons_and_teams ? ownerCv.persons_and_teams.filter(p => p.kind === 'person').map(p => String(p.id)).sort() : []),
+      status: statusCv ? statusCv.text : null,
+      project: projCv ? projCv.text : null
+    };
   }
 
-  let created = 0, removed = 0, kept = 0;
+  let created = 0, removed = 0, updated = 0, kept = 0;
 
-  // 3. Create rows for outstanding minutes not yet on 05.
+  // 3. Create new minutes; update in place when the source changed.
   for (const srcId of Object.keys(desired)) {
-    if (existing[srcId]) { kept++; continue; }
     const a = desired[srcId];
+    const wantProject = a.itemNo ? `Minutes ${a.itemNo}` : 'Minutes';
+    const personsVal = { personsAndTeams: a.owners.map(id => ({ id: Number(id), kind: 'person' })) };
+    if (existing[srcId]) {
+      const ex = existing[srcId];
+      const wantOwners = a.owners.map(String).sort();
+      const nameDiff = ex.name !== a.name;
+      const ownerDiff = ex.ownerIds.join(',') !== wantOwners.join(',');
+      const statusDiff = (a.status || null) !== (ex.status || null);
+      const projDiff = wantProject !== (ex.project || null);
+      if (nameDiff || ownerDiff || statusDiff || projDiff) {
+        try {
+          if (nameDiff) await mondayCall(`mutation { change_simple_column_value(board_id: ${ACTIONS_BOARD_ID}, item_id: ${ex.itemId}, column_id: "name", value: ${JSON.stringify(a.name)}) { id } }`);
+          const ucols = {};
+          if (ownerDiff) ucols[ACTIONS_OWNER_COL] = personsVal;
+          if (projDiff) ucols[ACTIONS_PROJECT_COL] = wantProject;
+          if (statusDiff && a.status) ucols[ACTIONS_STATUS_COL] = { label: a.status };
+          if (Object.keys(ucols).length) await mondayCall(`mutation($cols: JSON!) { change_multiple_column_values(board_id: ${ACTIONS_BOARD_ID}, item_id: ${ex.itemId}, column_values: $cols, create_labels_if_missing: true) { id } }`, { cols: JSON.stringify(ucols) });
+          console.log(`  ~ Updated minute "${a.name}"`);
+          updated++;
+        } catch (e) { console.warn(`  Could not update minute "${a.name}": ${e.message}`); }
+      } else { kept++; }
+      continue;
+    }
     const cols = {};
-    cols[ACTIONS_OWNER_COL] = { personsAndTeams: a.owners.map(id => ({ id: Number(id), kind: 'person' })) };
-    cols[ACTIONS_PROJECT_COL] = a.itemNo ? `Minutes ${a.itemNo}` : 'Minutes';
+    cols[ACTIONS_OWNER_COL] = personsVal;
+    cols[ACTIONS_PROJECT_COL] = wantProject;
     cols[ACTIONS_SOURCE_COL] = {
       url: `https://vitaarchitecture.monday.com/boards/${MINUTES_BOARD_ID}/pulses/${a.srcId}`,
       text: 'Open in 06_Minutes'
@@ -601,7 +664,7 @@ async function runMinutesSync() {
     }
   }
 
-  console.log(`Minutes sync done. ${created} added, ${removed} removed, ${kept} already present.`);
+  console.log(`Minutes sync done. ${created} added, ${updated} updated, ${removed} removed, ${kept} already present.`);
 }
 
 // --- Orchestration ---------------------------------------------------------
