@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-03T12:55:54.209Z",
+  "generated_at": "2026-09-03T13:02:09.171Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -45,10 +45,10 @@
       "locality": "Exeter",
       "lat": 50.73706249999999,
       "lng": -3.5688281249999916,
-      "priority": 5,
+      "priority": 6,
       "grm_status": "Go Ahead",
       "client": "GRM",
-      "project_status": "On Hold",
+      "project_status": "Go Ahead",
       "added": "2026-07-23",
       "start_date": "2026-07-23",
       "end_date": "2027-02-23",
@@ -135,8 +135,8 @@
       "locality": "Bristol",
       "lat": 51.52978750000001,
       "lng": -2.594671875000005,
-      "priority": 5,
-      "grm_status": "Potential to Proceed",
+      "priority": 6,
+      "grm_status": "Go Ahead",
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-08-17",
