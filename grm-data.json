@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T09:11:17.246Z",
+  "generated_at": "2026-09-04T09:18:03.467Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -149,18 +149,18 @@
     {
       "id": "12975546698",
       "name": "AA-014 Tonyrefail CF39 8BL",
-      "plus_code": null,
-      "locality": null,
-      "lat": null,
-      "lng": null,
-      "priority": 0,
-      "grm_status": "Not yet actioned",
+      "plus_code": "HH6J+M26",
+      "locality": "Porth",
+      "lat": 50.5616625,
+      "lng": -4.419984374999988,
+      "priority": 4,
+      "grm_status": "Under review",
       "client": "GRM",
-      "project_status": "To Be Reviewed",
-      "added": "",
-      "start_date": "",
-      "end_date": "",
-      "board_url": null,
+      "project_status": "Go Ahead",
+      "added": "2026-09-04",
+      "start_date": "2026-09-04",
+      "end_date": "2027-04-07",
+      "board_url": "https://vitaarchitecture.monday.com/boards/18429688566",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
