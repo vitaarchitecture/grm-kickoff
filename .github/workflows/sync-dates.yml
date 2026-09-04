@@ -25,4 +25,21 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add grm-data.json
-          git diff --staged --quiet || (git commit -m "Update map data" && git push)
+          if git diff --staged --quiet; then
+            echo "No map data changes to commit."
+            exit 0
+          fi
+          git commit -m "Update map data"
+          # Push, but if another concurrent run pushed first, rebase on top and retry.
+          # This prevents harmless "failed to push some refs" errors from failing the job.
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed map data (attempt $attempt)."
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — another run pushed first; rebasing and retrying."
+            git pull --rebase --autostash origin main || true
+            sleep 3
+          done
+          echo "Could not push map data after 5 attempts; the next run will carry it. Not failing the job."
+          exit 0
