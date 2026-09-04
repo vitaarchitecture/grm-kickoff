@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T15:31:13.228Z",
+  "generated_at": "2026-09-04T15:35:54.502Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -158,7 +158,7 @@
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-09-04",
-      "start_date": "2026-09-02",
+      "start_date": "2026-09-04",
       "end_date": "2027-04-07",
       "board_url": "https://vitaarchitecture.monday.com/boards/18429688566",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
@@ -173,12 +173,12 @@
       "lng": -3.9662031250000025,
       "priority": 4,
       "grm_status": "Under review",
-      "client": "Allocate",
+      "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-09-04",
       "start_date": "2026-09-02",
       "end_date": "",
-      "board_url": null,
+      "board_url": "https://vitaarchitecture.monday.com/boards/18429744177",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
