@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T15:25:52.711Z",
+  "generated_at": "2026-09-04T15:31:13.228Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -158,9 +158,27 @@
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-09-04",
-      "start_date": "2026-09-04",
+      "start_date": "2026-09-02",
       "end_date": "2027-04-07",
       "board_url": "https://vitaarchitecture.monday.com/boards/18429688566",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": null
+    },
+    {
+      "id": "12978132995",
+      "name": "AA-015 Felindre",
+      "plus_code": "M2JM+FG7",
+      "locality": "Morriston, Swansea",
+      "lat": 51.68116250000001,
+      "lng": -3.9662031250000025,
+      "priority": 4,
+      "grm_status": "Under review",
+      "client": "Allocate",
+      "project_status": "Go Ahead",
+      "added": "2026-09-04",
+      "start_date": "2026-09-02",
+      "end_date": "",
+      "board_url": null,
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
