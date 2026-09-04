@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T16:21:11.678Z",
+  "generated_at": "2026-09-04T16:26:07.576Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -179,6 +179,24 @@
       "start_date": "2026-09-04",
       "end_date": "2027-04-07",
       "board_url": "https://vitaarchitecture.monday.com/boards/18429744177",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": null
+    },
+    {
+      "id": "12978684067",
+      "name": "AA-016 Felixstowe IP11 2QE",
+      "plus_code": "X84M+P5G",
+      "locality": "Felixstowe",
+      "lat": 51.95681249999997,
+      "lng": 1.3329531250000013,
+      "priority": 4,
+      "grm_status": "Under review",
+      "client": "GRM",
+      "project_status": "Go Ahead",
+      "added": "2026-09-04",
+      "start_date": "2026-09-04",
+      "end_date": "",
+      "board_url": "https://vitaarchitecture.monday.com/boards/18429753311",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
