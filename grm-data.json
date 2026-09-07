@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-07T13:21:09.994Z",
+  "generated_at": "2026-09-07T13:25:57.609Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -197,6 +197,24 @@
       "start_date": "2026-09-02",
       "end_date": "2027-04-07",
       "board_url": "https://vitaarchitecture.monday.com/boards/18429753311",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": null
+    },
+    {
+      "id": "12989356356",
+      "name": "AA-017 Lanark ML11 0SX",
+      "plus_code": null,
+      "locality": null,
+      "lat": null,
+      "lng": null,
+      "priority": 0,
+      "grm_status": "Not yet actioned",
+      "client": "Allocate",
+      "project_status": "To Be Reviewed",
+      "added": "",
+      "start_date": "",
+      "end_date": "",
+      "board_url": null,
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
