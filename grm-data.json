@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-07T13:25:57.609Z",
+  "generated_at": "2026-09-07T13:31:17.488Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -211,7 +211,7 @@
       "grm_status": "Not yet actioned",
       "client": "Allocate",
       "project_status": "To Be Reviewed",
-      "added": "",
+      "added": "2026-09-07",
       "start_date": "",
       "end_date": "",
       "board_url": null,
