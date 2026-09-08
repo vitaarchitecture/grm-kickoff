@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T11:02:13.793Z",
+  "generated_at": "2026-09-08T11:05:58.817Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -230,9 +230,9 @@
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-09-08",
-      "start_date": "",
-      "end_date": "",
-      "board_url": "https://vitaarchitecture.monday.com/boards/18430097055",
+      "start_date": "2026-09-08",
+      "end_date": "2027-04-11",
+      "board_url": "https://vitaarchitecture.monday.com/boards/18430100773",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
