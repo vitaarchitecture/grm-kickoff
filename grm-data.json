@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T15:41:07.725Z",
+  "generated_at": "2026-09-08T15:46:16.518Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -165,24 +165,6 @@
       "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3230741709/Coed%20Ely,%20Tonyrefail%20Site%20Review.pdf"
     },
     {
-      "id": "12978132995",
-      "name": "AA-015 Felindre",
-      "plus_code": "M2JM+FG7",
-      "locality": "Morriston, Swansea",
-      "lat": 51.68116250000001,
-      "lng": -3.9662031250000025,
-      "priority": 4,
-      "grm_status": "Under review",
-      "client": "GRM",
-      "project_status": "Go Ahead",
-      "added": "2026-09-04",
-      "start_date": "2026-09-04",
-      "end_date": "2027-04-07",
-      "board_url": "https://vitaarchitecture.monday.com/boards/18429744177",
-      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
-      "site_review_url": null
-    },
-    {
       "id": "12978684067",
       "name": "AA-016 Felixstowe IP11 2QE",
       "plus_code": "X84M+P5G",
@@ -325,6 +307,24 @@
       "board_url": "https://vitaarchitecture.monday.com/boards/18424452586",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3184013236/AA-011%20Wisbech%20Site%20Review.pdf"
+    },
+    {
+      "id": "12978132995",
+      "name": "AA-015 Felindre",
+      "plus_code": "M2JM+FG7",
+      "locality": "Morriston, Swansea",
+      "lat": 51.68116250000001,
+      "lng": -3.9662031250000025,
+      "priority": -2,
+      "grm_status": "Under review",
+      "client": "GRM",
+      "project_status": "Do Not Proceed",
+      "added": "2026-09-04",
+      "start_date": "2026-09-04",
+      "end_date": "2027-04-07",
+      "board_url": "https://vitaarchitecture.monday.com/boards/18429744177",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": null
     }
   ]
 }
