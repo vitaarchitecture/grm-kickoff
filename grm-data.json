@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T12:56:03.473Z",
+  "generated_at": "2026-09-08T13:03:00.463Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -207,8 +207,8 @@
       "locality": "Lanark",
       "lat": 55.6060375,
       "lng": -3.844890624999999,
-      "priority": 4,
-      "grm_status": "Under review",
+      "priority": 6,
+      "grm_status": "Go Ahead",
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-09-07",
@@ -225,8 +225,8 @@
       "locality": "Port Talbot",
       "lat": 51.56333750000002,
       "lng": -3.7430781249999923,
-      "priority": 7,
-      "grm_status": "Under review",
+      "priority": 9,
+      "grm_status": "Go Ahead",
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-09-08",
