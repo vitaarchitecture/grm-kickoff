@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-09T09:56:10.971Z",
+  "generated_at": "2026-09-09T10:01:48.832Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -37,24 +37,6 @@
       "board_url": "https://vitaarchitecture.monday.com/boards/18419754497",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
-    },
-    {
-      "id": "12368441015",
-      "name": "AA-004 Exeter EX4 2JE",
-      "plus_code": "PCPJ+RFF",
-      "locality": "Exeter",
-      "lat": 50.73706249999999,
-      "lng": -3.5688281249999916,
-      "priority": 6,
-      "grm_status": "Go Ahead",
-      "client": "GRM",
-      "project_status": "Go Ahead",
-      "added": "2026-07-23",
-      "start_date": "2026-07-23",
-      "end_date": "2027-02-23",
-      "board_url": "https://vitaarchitecture.monday.com/boards/18423482246",
-      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
-      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3159055155/AA-004%20Exeter%20EX4%202JE%20Site%20Review.odt"
     },
     {
       "id": "12623307856",
@@ -325,6 +307,24 @@
       "board_url": "https://vitaarchitecture.monday.com/boards/18429744177",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
+    },
+    {
+      "id": "12368441015",
+      "name": "AA-004 Exeter EX4 2JE",
+      "plus_code": "PCPJ+RFF",
+      "locality": "Exeter",
+      "lat": 50.73706249999999,
+      "lng": -3.5688281249999916,
+      "priority": 0,
+      "grm_status": "Go Ahead",
+      "client": "GRM",
+      "project_status": "Do Not Proceed",
+      "added": "2026-07-23",
+      "start_date": "2026-07-23",
+      "end_date": "2027-02-23",
+      "board_url": "https://vitaarchitecture.monday.com/boards/18423482246",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3159055155/AA-004%20Exeter%20EX4%202JE%20Site%20Review.odt"
     }
   ]
 }
