@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-10T08:06:01.883Z",
+  "generated_at": "2026-09-10T08:11:18.011Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -109,24 +109,6 @@
       "board_url": "https://vitaarchitecture.monday.com/boards/18425014961",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3164435736/Cow%20Croft%20Field%20Site%20Review.odt"
-    },
-    {
-      "id": "12820997373",
-      "name": "AA-013 Bristol BS34 5TL",
-      "plus_code": "GCH4+W48",
-      "locality": "Bristol",
-      "lat": 51.52978750000001,
-      "lng": -2.594671875000005,
-      "priority": 6,
-      "grm_status": "Go Ahead",
-      "client": "GRM",
-      "project_status": "Go Ahead",
-      "added": "2026-08-17",
-      "start_date": "2026-08-17",
-      "end_date": "2027-03-20",
-      "board_url": "https://vitaarchitecture.monday.com/boards/18426891788",
-      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
-      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3194944247/AA-013%20Bristol%20BS34%205TL%20Site%20Review.pdf"
     },
     {
       "id": "12978684067",
@@ -325,6 +307,24 @@
       "board_url": "https://vitaarchitecture.monday.com/boards/18429688566",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3230741709/Coed%20Ely,%20Tonyrefail%20Site%20Review.pdf"
+    },
+    {
+      "id": "12820997373",
+      "name": "AA-013 Bristol BS34 5TL",
+      "plus_code": "GCH4+W48",
+      "locality": "Bristol",
+      "lat": 51.52978750000001,
+      "lng": -2.594671875000005,
+      "priority": 0,
+      "grm_status": "Go Ahead",
+      "client": "GRM",
+      "project_status": "Do Not Proceed",
+      "added": "2026-08-17",
+      "start_date": "2026-08-17",
+      "end_date": "2027-03-20",
+      "board_url": "https://vitaarchitecture.monday.com/boards/18426891788",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3194944247/AA-013%20Bristol%20BS34%205TL%20Site%20Review.pdf"
     }
   ]
 }
