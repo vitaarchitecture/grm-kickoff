@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-11T13:26:21.769Z",
+  "generated_at": "2026-09-11T13:31:38.920Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -205,8 +205,8 @@
       "name": "AA-006 Fife KY5 0HP",
       "plus_code": "5M9W+5GQ",
       "locality": "Lochgelly",
-      "lat": null,
-      "lng": null,
+      "lat": 56.167962500000016,
+      "lng": -3.303640625000008,
       "priority": -1,
       "grm_status": "Potential to Proceed",
       "client": "GRM",
