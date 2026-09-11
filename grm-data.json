@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-11T08:26:11.579Z",
+  "generated_at": "2026-09-11T08:31:22.354Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -117,8 +117,8 @@
       "locality": "Felixstowe",
       "lat": 51.95681249999997,
       "lng": 1.3329531250000013,
-      "priority": 4,
-      "grm_status": "Under review",
+      "priority": 5,
+      "grm_status": "Potential to Proceed",
       "client": "GRM",
       "project_status": "Go Ahead",
       "added": "2026-09-04",
@@ -126,7 +126,7 @@
       "end_date": "2027-04-07",
       "board_url": "https://vitaarchitecture.monday.com/boards/18429753311",
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
-      "site_review_url": null
+      "site_review_url": "https://vitaarchitecture.monday.com/protected_static/9818034/resources/3241349625/AA-016%20Felixstowe%20Site%20Review%20.pdf"
     },
     {
       "id": "12989356356",
