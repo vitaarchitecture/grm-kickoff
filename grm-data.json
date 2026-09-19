@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T13:41:23.612Z",
+  "generated_at": "2026-09-19T13:46:06.950Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -295,8 +295,8 @@
       "name": "AA-014 Tonyrefail CF39 8BL",
       "plus_code": "HH6J+M26",
       "locality": "Porth",
-      "lat": null,
-      "lng": null,
+      "lat": 50.5616625,
+      "lng": -4.419984374999988,
       "priority": -1,
       "grm_status": "Potential to Proceed",
       "client": "GRM",
