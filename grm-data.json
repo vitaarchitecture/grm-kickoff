@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-23T14:16:21.822Z",
+  "generated_at": "2026-09-23T14:21:15.128Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -295,8 +295,8 @@
       "name": "AA-014 Tonyrefail CF39 8BL",
       "plus_code": "HH6J+M26",
       "locality": "Porth",
-      "lat": null,
-      "lng": null,
+      "lat": 50.5616625,
+      "lng": -4.419984374999988,
       "priority": -1,
       "grm_status": "Potential to Proceed",
       "client": "GRM",
@@ -313,8 +313,8 @@
       "name": "AA-013 Bristol BS34 5TL",
       "plus_code": "GCH4+W48",
       "locality": "Bristol",
-      "lat": null,
-      "lng": null,
+      "lat": 51.52978750000001,
+      "lng": -2.594671875000005,
       "priority": 0,
       "grm_status": "Go Ahead",
       "client": "GRM",
