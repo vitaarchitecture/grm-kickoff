@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-24T09:36:00.719Z",
+  "generated_at": "2026-09-24T09:41:21.528Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -135,10 +135,10 @@
       "locality": "Lanark",
       "lat": 55.6060375,
       "lng": -3.844890624999999,
-      "priority": 6,
+      "priority": 5,
       "grm_status": "Go Ahead",
       "client": "GRM",
-      "project_status": "Go Ahead",
+      "project_status": "On Hold",
       "added": "2026-09-07",
       "start_date": "2026-09-07",
       "end_date": "2027-04-10",
