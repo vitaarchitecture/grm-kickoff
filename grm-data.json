@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-28T15:56:04.197Z",
+  "generated_at": "2026-09-28T16:01:52.456Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -161,6 +161,24 @@
       "start_date": "2026-09-08",
       "end_date": "2027-04-11",
       "board_url": "https://vitaarchitecture.monday.com/boards/18430100773",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": null
+    },
+    {
+      "id": "13151389712",
+      "name": "AA-019 Carrog Ganol, Rhoshoch",
+      "plus_code": null,
+      "locality": null,
+      "lat": null,
+      "lng": null,
+      "priority": 0,
+      "grm_status": "Not yet actioned",
+      "client": "Allocate",
+      "project_status": "To Be Reviewed",
+      "added": "",
+      "start_date": "",
+      "end_date": "",
+      "board_url": null,
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
