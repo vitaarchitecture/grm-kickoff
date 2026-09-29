@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-29T12:56:08.458Z",
+  "generated_at": "2026-09-29T13:02:54.436Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -133,8 +133,8 @@
       "name": "AA-017 Lanark ML11 0SX",
       "plus_code": "J544+C29",
       "locality": "Lanark",
-      "lat": 55.6060375,
-      "lng": -3.844890624999999,
+      "lat": null,
+      "lng": null,
       "priority": 4,
       "grm_status": "Potential to Proceed",
       "client": "GRM",
@@ -241,8 +241,8 @@
       "name": "AA-009 Fiddes",
       "plus_code": "WPF2+Q56",
       "locality": "Laurencekirk",
-      "lat": 56.92441250000003,
-      "lng": -2.29960937500002,
+      "lat": null,
+      "lng": null,
       "priority": -1,
       "grm_status": "Potential to Proceed",
       "client": "GRM",
