@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-01T14:41:16.889Z",
+  "generated_at": "2026-10-01T14:46:22.715Z",
   "board_id": 18419311248,
   "items": [
     {
@@ -171,14 +171,32 @@
       "locality": "Cemaes Bay",
       "lat": 53.404812500000006,
       "lng": -4.447203124999996,
-      "priority": 1,
-      "grm_status": "Under review",
+      "priority": 5,
+      "grm_status": "Go Ahead",
       "client": "GRM",
-      "project_status": "To Be Reviewed",
+      "project_status": "On Hold",
       "added": "2026-09-28",
       "start_date": "2026-09-28",
       "end_date": "2027-05-01",
       "board_url": "https://vitaarchitecture.monday.com/boards/18433028451",
+      "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
+      "site_review_url": null
+    },
+    {
+      "id": "13182586381",
+      "name": "AA-020 Delta Park, Goole DN14 8JZ",
+      "plus_code": "P35J+F82",
+      "locality": "Goole",
+      "lat": 53.70863749999998,
+      "lng": -0.9192343749999767,
+      "priority": 4,
+      "grm_status": "Under review",
+      "client": "GRM",
+      "project_status": "Go Ahead",
+      "added": "2026-10-01",
+      "start_date": "",
+      "end_date": "",
+      "board_url": null,
       "dashboard_url": "https://vitaarchitecture.github.io/grm-kickoff/?item=",
       "site_review_url": null
     },
